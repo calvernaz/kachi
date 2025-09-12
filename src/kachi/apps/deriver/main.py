@@ -1,12 +1,13 @@
 """Event processing pipeline for deriving meter readings from raw events."""
 
+import argparse
 import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kachi.apps.deriver.processors import EdgeDeriver, WorkDeriver
@@ -82,7 +83,7 @@ class EventProcessor:
             events_processed=len(events),
             edge_readings=edge_readings,
             work_readings=work_readings,
-            customers=len(set(e.customer_id for e in events)),
+            customers=len({e.customer_id for e in events}),
         )
 
         return {
@@ -185,8 +186,6 @@ class EventProcessor:
         self, customer_id: UUID, start_date: datetime, end_date: datetime
     ) -> None:
         """Delete existing meter readings for reprocessing."""
-        from sqlalchemy import delete
-
         stmt = delete(MeterReading).where(
             MeterReading.customer_id == customer_id,
             MeterReading.window_start >= start_date,
@@ -198,8 +197,6 @@ class EventProcessor:
 
 async def main():
     """CLI entry point for event processing."""
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Process raw events into meter readings"
     )

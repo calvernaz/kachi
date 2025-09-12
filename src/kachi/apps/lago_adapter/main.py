@@ -1,5 +1,6 @@
 """Main Lago adapter for billing integration."""
 
+import contextlib
 import logging
 from datetime import datetime
 from decimal import Decimal
@@ -234,16 +235,14 @@ class LagoAdapter:
             # Create or get the success fee add-on
             addon_code = f"success_fee_{outcome_type}"
 
-            try:
+            with contextlib.suppress(Exception):
+                # Add-on might already exist, ignore creation errors
                 await self.lago_client.create_add_on(
                     code=addon_code,
                     name=f"Success Fee - {outcome_type.title()}",
-                    description=f"Success fee for {outcome_type}",
+                    description=description or f"Success fee for {outcome_type}",
                     amount_cents=int(amount * 100),  # Convert to cents
                 )
-            except Exception:
-                # Add-on might already exist
-                pass
 
             # Apply the add-on to the customer
             await self.lago_client.apply_add_on(

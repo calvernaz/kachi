@@ -7,9 +7,12 @@ from uuid import UUID
 
 import structlog
 from celery import Celery
+from sqlalchemy import delete, select
 
 from kachi.apps.deriver.main import EventProcessor
+from kachi.apps.deriver.processors import AnomalyDetector
 from kachi.lib.db import get_session
+from kachi.lib.models import Customer, RawEvent
 
 logger = structlog.get_logger()
 
@@ -180,11 +183,6 @@ def detect_anomalies(self) -> dict[str, Any]:
     try:
 
         async def _detect():
-            from sqlalchemy import select
-
-            from kachi.apps.deriver.processors import AnomalyDetector
-            from kachi.lib.models import Customer
-
             async with get_session() as session:
                 detector = AnomalyDetector(session)
 
@@ -236,10 +234,6 @@ def cleanup_old_events(self, days_to_keep: int = 90) -> dict[str, Any]:
     try:
 
         async def _cleanup():
-            from sqlalchemy import delete
-
-            from kachi.lib.models import RawEvent
-
             cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
 
             async with get_session() as session:

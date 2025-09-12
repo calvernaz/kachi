@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kachi.apps.ingest_api.processors import EventProcessor
+from kachi.apps.lago_adapter.tasks import handle_lago_webhook as process_lago_webhook
 from kachi.lib.db import get_session
 from kachi.lib.otel_schemas import (
     OTelExportRequest,
@@ -196,9 +197,7 @@ async def handle_lago_webhook(
             )
 
         # Queue the webhook processing as a background task
-        from kachi.apps.lago_adapter.tasks import handle_lago_webhook
-
-        handle_lago_webhook.delay(event_type, event_data)
+        process_lago_webhook.delay(event_type, event_data)
 
         await logger.ainfo(
             "Queued Lago webhook processing",

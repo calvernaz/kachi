@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kachi.lib.models import MeterReading, RawEvent
@@ -197,8 +198,6 @@ class AnomalyDetector:
         self, customer_id: UUID, meter_key: str, threshold_multiplier: float = 3.0
     ) -> list[dict[str, Any]]:
         """Detect usage spikes compared to historical average."""
-        from sqlalchemy import select
-
         # Get recent readings for baseline
         recent_query = (
             select(MeterReading)
@@ -242,10 +241,6 @@ class AnomalyDetector:
         self, customer_id: UUID, hours_threshold: int = 24
     ) -> list[dict[str, Any]]:
         """Detect customers with zero usage for extended periods."""
-        from datetime import timedelta
-
-        from sqlalchemy import func, select
-
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_threshold)
 
         # Check if customer has any recent readings

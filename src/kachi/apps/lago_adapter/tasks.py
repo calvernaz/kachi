@@ -1,8 +1,10 @@
 """Celery tasks for Lago integration."""
 
+import asyncio
 import logging
 import os
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -12,6 +14,7 @@ from sqlalchemy import select
 from kachi.apps.lago_adapter.main import create_lago_adapter
 from kachi.lib.db import get_session
 from kachi.lib.models import Customer, RatedUsage
+from kachi.lib.rating_policies import RatedLine, RatingResult
 
 logger = logging.getLogger(__name__)
 
@@ -56,11 +59,10 @@ celery_app.conf.beat_schedule = {
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
-def sync_customer_to_lago(self, customer_id: str) -> dict[str, Any]:
+def sync_customer_to_lago(customer_id: str) -> dict[str, Any]:
     """Sync a customer to Lago."""
     try:
 
@@ -75,8 +77,6 @@ def sync_customer_to_lago(self, customer_id: str) -> dict[str, Any]:
                 success = await lago_adapter.sync_customer(UUID(customer_id))
                 return {"success": success, "customer_id": customer_id}
 
-        import asyncio
-
         return asyncio.run(_sync())
 
     except Exception as e:
@@ -85,11 +85,10 @@ def sync_customer_to_lago(self, customer_id: str) -> dict[str, Any]:
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
-def push_rated_usage_to_lago(self, rated_usage_id: int) -> dict[str, Any]:
+def push_rated_usage_to_lago(rated_usage_id: int) -> dict[str, Any]:
     """Push rated usage to Lago."""
     try:
 
@@ -108,8 +107,6 @@ def push_rated_usage_to_lago(self, rated_usage_id: int) -> dict[str, Any]:
                     return {"success": True, "message": "Already pushed to Lago"}
 
                 # Convert to rating result format
-                from kachi.lib.rating_policies import RatedLine, RatingResult
-
                 rating_result = RatingResult(
                     customer_id=str(rated_usage.customer_id),
                     period_start=rated_usage.period_start.isoformat(),
@@ -147,8 +144,6 @@ def push_rated_usage_to_lago(self, rated_usage_id: int) -> dict[str, Any]:
 
                 return {"success": success, "rated_usage_id": rated_usage_id}
 
-        import asyncio
-
         return asyncio.run(_push())
 
     except Exception as e:
@@ -157,7 +152,6 @@ def push_rated_usage_to_lago(self, rated_usage_id: int) -> dict[str, Any]:
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 2, "countdown": 300},
 )
@@ -180,8 +174,6 @@ def sync_invoices() -> dict[str, Any]:
                     "invoices": synced_invoices,
                 }
 
-        import asyncio
-
         return asyncio.run(_sync())
 
     except Exception as e:
@@ -190,7 +182,6 @@ def sync_invoices() -> dict[str, Any]:
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 2, "countdown": 300},
 )
@@ -223,8 +214,6 @@ def push_pending_usage() -> dict[str, Any]:
                     "total_pending": len(pending_usage),
                 }
 
-        import asyncio
-
         return asyncio.run(_push())
 
     except Exception as e:
@@ -233,7 +222,6 @@ def push_pending_usage() -> dict[str, Any]:
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 2, "countdown": 300},
 )
@@ -268,8 +256,6 @@ def setup_new_customers() -> dict[str, Any]:
                     "total_new": len(new_customers),
                 }
 
-        import asyncio
-
         return asyncio.run(_setup())
 
     except Exception as e:
@@ -278,13 +264,10 @@ def setup_new_customers() -> dict[str, Any]:
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
-def handle_lago_webhook(
-    self, event_type: str, event_data: dict[str, Any]
-) -> dict[str, Any]:
+def handle_lago_webhook(event_type: str, event_data: dict[str, Any]) -> dict[str, Any]:
     """Handle incoming Lago webhook events."""
     try:
 
@@ -305,8 +288,6 @@ def handle_lago_webhook(
                     "processed_at": datetime.utcnow().isoformat(),
                 }
 
-        import asyncio
-
         return asyncio.run(_handle())
 
     except Exception as e:
@@ -315,12 +296,11 @@ def handle_lago_webhook(
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 3, "countdown": 60},
 )
 def push_success_fee(
-    self, customer_id: str, outcome_type: str, amount: float, description: str
+    customer_id: str, outcome_type: str, amount: float, description: str
 ) -> dict[str, Any]:
     """Push a success fee to Lago."""
     try:
@@ -332,8 +312,6 @@ def push_success_fee(
                     api_key=os.getenv("LAGO_API_KEY"),
                     api_url=os.getenv("LAGO_API_URL", "https://api.getlago.com"),
                 )
-
-                from decimal import Decimal
 
                 success = await lago_adapter.push_success_fee(
                     customer_id=UUID(customer_id),
@@ -349,8 +327,6 @@ def push_success_fee(
                     "amount": amount,
                 }
 
-        import asyncio
-
         return asyncio.run(_push())
 
     except Exception as e:
@@ -359,7 +335,6 @@ def push_success_fee(
 
 
 @celery_app.task(
-    bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={"max_retries": 1, "countdown": 60},
 )
@@ -386,8 +361,6 @@ def setup_lago_catalog() -> dict[str, Any]:
                     "metrics_setup": metrics_success,
                     "plan_setup": plan_success,
                 }
-
-        import asyncio
 
         return asyncio.run(_setup())
 

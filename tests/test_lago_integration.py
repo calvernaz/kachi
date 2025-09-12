@@ -9,7 +9,7 @@ import pytest
 
 from kachi.apps.lago_adapter.main import LagoAdapter
 from kachi.lib.lago_client import LagoClientWrapper, LagoConfig
-from kachi.lib.rating_policies import RatedLine, RatingResult
+from kachi.lib.rating_policies import EnvelopeAllocation, RatedLine, RatingResult
 
 
 class MockLagoClient:
@@ -81,8 +81,6 @@ def lago_adapter(mock_session, lago_client_wrapper):
 @pytest.fixture
 def sample_rating_result():
     """Sample rating result for testing."""
-    from kachi.lib.rating_policies import EnvelopeAllocation
-
     customer_id = uuid4()
     return RatingResult(
         customer_id=customer_id,

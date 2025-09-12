@@ -202,9 +202,12 @@ def apply_exclusions(
         drop_meters = exclusion.get("drop", [])
 
         # Check if the condition meter has usage
-        if when_meter and when_meter in usage_by_meter:
-            if usage_by_meter[when_meter].value > 0:
-                excluded_meters.update(drop_meters)
+        if (
+            when_meter
+            and when_meter in usage_by_meter
+            and usage_by_meter[when_meter].value > 0
+        ):
+            excluded_meters.update(drop_meters)
 
     # Filter out excluded meters
     return [r for r in usage_readings if r.meter_key not in excluded_meters]

@@ -20,15 +20,14 @@ repos:
     hooks:
       - id: black
 
-# Temporarily disabled pylint hook due to path issues
-#  - repo: local
-#    hooks:
-#      - id: pylint
-#        name: pylint
-#        entry: pylint
-#        language: system
-#        types: [python]
-#        args: [
-#          "-rn", # Only display messages
-#          "-sn", # Don't display the score
-#        ]
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: uv run pylint
+        language: system
+        types: [python]
+        args: [
+          "-rn", # Only display messages
+          "-sn", # Don't display the score
+        ]

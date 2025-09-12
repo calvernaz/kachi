@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kachi.lib.models import MeterReading, RatedUsage
 from kachi.lib.rating_policies import (
     EnvelopeAllocation,
+    MeterPricing,
+    PricingTier,
     RatedLine,
     RatingPolicy,
     RatingResult,
@@ -184,7 +186,7 @@ class RatingEngine:
         self,
         readings: list[UsageReading],
         policy: RatingPolicy,
-        envelopes: dict[str, EnvelopeAllocation],
+        _envelopes: dict[str, EnvelopeAllocation],
     ) -> list[RatedLine]:
         """Rate with edges taking precedence over work."""
         lines = []
@@ -344,9 +346,9 @@ class RatingEngine:
     async def _estimate_cogs(
         self,
         lines: list[RatedLine],
-        customer_id: UUID,
-        period_start: datetime,
-        period_end: datetime,
+        _customer_id: UUID,
+        _period_start: datetime,
+        _period_end: datetime,
     ) -> Decimal:
         """Estimate cost of goods sold for the rated usage."""
         # This would integrate with cost tracking system
@@ -441,7 +443,7 @@ class RatingService:
 
         await self.session.commit()
 
-    async def get_customer_policy(self, customer_id: UUID) -> RatingPolicy:
+    async def get_customer_policy(self, _customer_id: UUID) -> RatingPolicy:
         """Get the rating policy for a customer."""
         # For now, return a default policy
         # In production, this would load from customer's plan
@@ -449,7 +451,6 @@ class RatingService:
 
     def _get_default_policy(self) -> RatingPolicy:
         """Get the default rating policy."""
-        from kachi.lib.rating_policies import MeterPricing, PricingTier
 
         return RatingPolicy(
             precedence="work_over_edges",
