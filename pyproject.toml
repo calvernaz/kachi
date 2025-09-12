@@ -1,0 +1,173 @@
+[project]
+name = "kachi"
+version = "0.1.0"
+description = "Dual-Rail Usage Billing Platform with Python and Lago"
+readme = "README.md"
+authors = [
+    { name = "Cesar Alvernaz", email = "cesar.alvernaz@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "sqlmodel>=0.0.14",
+    "alembic>=1.12.0",
+    "asyncpg>=0.29.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.5.0",
+    "opentelemetry-api>=1.21.0",
+    "opentelemetry-sdk>=1.21.0",
+    "opentelemetry-exporter-otlp>=1.21.0",
+    "redis>=5.0.0",
+    "celery>=5.3.0",
+    "python-multipart>=0.0.6",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "structlog>=23.2.0",
+    "typer>=0.9.0",
+    "psycopg2-binary>=2.9.10",
+    "lago-python-client>=1.33.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.6",
+    "pylint>=3.0.0",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "hypothesis>=6.88.0",
+    "black>=23.11.0",
+    "mypy>=1.7.0",
+    "pre-commit>=3.5.0",
+]
+
+[project.scripts]
+kachi = "kachi:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
+    "PTH", # flake8-use-pathlib
+    "ERA", # eradicate
+    "PL",  # pylint
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "PLR0913", # too many arguments
+    "PLR0915", # too many statements
+    "PLR0912", # too many branches
+    "PLR2004", # magic value used in comparison
+    "B008",    # do not perform function call in argument defaults
+    "B904",    # within except clause, raise exceptions with raise ... from err
+    "ARG001",  # unused function argument
+    "ARG002",  # unused method argument
+    "F841",    # local variable assigned but never used
+    "SIM105",  # use contextlib.suppress instead of try-except-pass
+    "SIM102",  # use single if statement instead of nested if
+    "C401",    # unnecessary generator
+    "PLC0415", # import should be at top-level
+    "PLR1704", # redefining argument with local name
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "S101", "PLR2004", "F841"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kachi"]
+
+# Pylint configuration
+[tool.pylint.messages_control]
+disable = [
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "too-few-public-methods",
+    "duplicate-code",
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--cov=kachi",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+asyncio_mode = "auto"
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]
+
+[dependency-groups]
+dev = [
+    "aiosqlite>=0.21.0",
+    "black>=25.1.0",
+    "greenlet>=3.2.4",
+    "httpx>=0.28.1",
+    "hypothesis>=6.138.15",
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0",
+    "pylint>=3.3.8",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.12.12",
+]

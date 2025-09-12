@@ -1,0 +1,1 @@
+"""Kachi applications package."""
