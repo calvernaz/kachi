@@ -1,15 +1,16 @@
 """Celery tasks for rating engine operations."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from celery import Celery
+from celery import Celery  # type: ignore[import-untyped]
 from sqlalchemy import select
 
 from kachi.apps.rater.main import RatingService
-from kachi.lib.db import get_session
+from kachi.lib.db import AsyncSessionLocal, get_session
 from kachi.lib.models import Customer, RatedUsage
 
 logger = logging.getLogger(__name__)
@@ -52,9 +53,9 @@ celery_app.conf.beat_schedule = {
 }
 
 
-@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3})  # type: ignore[misc]
 def rate_customer_period(
-    self,
+    self: Any,
     customer_id: str,
     period_start: str,
     period_end: str,
@@ -62,11 +63,13 @@ def rate_customer_period(
 ) -> dict[str, Any]:
     """Rate a specific customer for a specific period."""
     try:
-        return _rate_customer_period_impl(
-            UUID(customer_id),
-            datetime.fromisoformat(period_start),
-            datetime.fromisoformat(period_end),
-            force_reprocess,
+        return asyncio.run(
+            _rate_customer_period_impl(
+                UUID(customer_id),
+                datetime.fromisoformat(period_start),
+                datetime.fromisoformat(period_end),
+                force_reprocess,
+            )
         )
     except Exception as exc:
         logger.error(f"Failed to rate customer {customer_id}: {exc}")
@@ -80,13 +83,14 @@ async def _rate_customer_period_impl(
     force_reprocess: bool = False,
 ) -> dict[str, Any]:
     """Implementation of customer period rating."""
-    async with get_session() as session:
+    async with AsyncSessionLocal() as session:
         # Check if already processed
         if not force_reprocess:
-            existing_query = select(RatedUsage).where(
-                RatedUsage.customer_id == customer_id,
-                RatedUsage.period_start == period_start,
-                RatedUsage.period_end == period_end,
+            existing_query = (
+                select(RatedUsage)
+                .where(RatedUsage.customer_id == customer_id)  # type: ignore[arg-type]
+                .where(RatedUsage.period_start == period_start)  # type: ignore[arg-type]
+                .where(RatedUsage.period_end == period_end)  # type: ignore[arg-type]
             )
 
             result = await session.execute(existing_query)

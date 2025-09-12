@@ -37,7 +37,7 @@ export const useCustomerStore = defineStore('customer', () => {
   const error = ref<string | null>(null)
 
   const apiClient = axios.create({
-    baseURL: '/api',
+    baseURL: 'http://localhost:8002/api',
     timeout: 10000,
   })
 

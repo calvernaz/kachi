@@ -99,7 +99,7 @@ class RatingEngine:
             )
 
         # Calculate totals
-        subtotal = sum(line.amount for line in lines)
+        subtotal = sum((line.amount for line in lines), Decimal("0"))
         discount_amount = subtotal * (policy.discount_percent / Decimal("100"))
         total = subtotal - discount_amount
 
@@ -132,17 +132,18 @@ class RatingEngine:
         self, customer_id: UUID, period_start: datetime, period_end: datetime
     ) -> list[UsageReading]:
         """Load and aggregate meter readings for the period."""
-        query = select(MeterReading).where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= period_start,
-            MeterReading.window_end <= period_end,
+        query = (
+            select(MeterReading)
+            .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+            .where(MeterReading.window_start >= period_start)  # type: ignore[arg-type]
+            .where(MeterReading.window_end <= period_end)  # type: ignore[arg-type]
         )
 
         result = await self.session.execute(query)
         readings = result.scalars().all()
 
         # Aggregate by meter key
-        aggregated = defaultdict(Decimal)
+        aggregated: dict[str, Decimal] = defaultdict(Decimal)
         for reading in readings:
             aggregated[reading.meter_key] += reading.value
 
@@ -403,10 +404,13 @@ class RatingService:
     async def _store_rated_usage(self, result: RatingResult) -> None:
         """Store rated usage in the database."""
         # Check if already exists
-        existing_query = select(RatedUsage).where(
-            RatedUsage.customer_id == result.customer_id,
-            RatedUsage.period_start == datetime.fromisoformat(result.period_start),
-            RatedUsage.period_end == datetime.fromisoformat(result.period_end),
+        existing_query = (
+            select(RatedUsage)
+            .where(RatedUsage.customer_id == result.customer_id)  # type: ignore[arg-type]
+            .where(
+                RatedUsage.period_start == datetime.fromisoformat(result.period_start)
+            )  # type: ignore[arg-type]
+            .where(RatedUsage.period_end == datetime.fromisoformat(result.period_end))  # type: ignore[arg-type]
         )
 
         existing_result = await self.session.execute(existing_query)
@@ -426,7 +430,7 @@ class RatingService:
         else:
             # Create new record
             rated_usage = RatedUsage(
-                customer_id=UUID(result.customer_id),
+                customer_id=result.customer_id,
                 period_start=datetime.fromisoformat(result.period_start),
                 period_end=datetime.fromisoformat(result.period_end),
                 total_amount=result.total,

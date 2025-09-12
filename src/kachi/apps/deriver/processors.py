@@ -201,12 +201,10 @@ class AnomalyDetector:
         # Get recent readings for baseline
         recent_query = (
             select(MeterReading)
-            .where(
-                MeterReading.customer_id == customer_id,
-                MeterReading.meter_key == meter_key,
-                MeterReading.window_start >= datetime.utcnow() - timedelta(days=30),
-            )
-            .order_by(MeterReading.window_start.desc())
+            .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+            .where(MeterReading.meter_key == meter_key)  # type: ignore[arg-type]
+            .where(MeterReading.window_start >= datetime.utcnow() - timedelta(days=30))  # type: ignore[arg-type]
+            .order_by(MeterReading.window_start.desc())  # type: ignore[attr-defined]
             .limit(100)
         )
 
@@ -244,9 +242,11 @@ class AnomalyDetector:
         cutoff_time = datetime.utcnow() - timedelta(hours=hours_threshold)
 
         # Check if customer has any recent readings
-        query = select(func.count(MeterReading.id)).where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= cutoff_time,
+        query = (
+            select(func.count())
+            .select_from(MeterReading)
+            .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+            .where(MeterReading.window_start >= cutoff_time)  # type: ignore[arg-type]
         )
 
         result = await self.session.execute(query)

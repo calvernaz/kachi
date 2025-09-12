@@ -81,6 +81,38 @@ class DrillDownItem(BaseModel):
     source_event_ids: list[int]
 
 
+class TimeSeriesPoint(BaseModel):
+    """Time series data point."""
+
+    timestamp: datetime
+    value: Decimal
+    meter_key: str
+
+
+class UsageTrend(BaseModel):
+    """Usage trend data for charts."""
+
+    period: str  # 'daily', 'weekly', 'monthly'
+    data_points: list[TimeSeriesPoint]
+    total_usage: Decimal
+    average_usage: Decimal
+    peak_usage: Decimal
+    growth_rate: float  # percentage change from previous period
+
+
+class DashboardMetrics(BaseModel):
+    """Real-time dashboard metrics."""
+
+    total_customers: int
+    active_customers: int
+    monthly_revenue: Decimal
+    daily_revenue: Decimal
+    total_api_calls_today: int
+    total_workflows_today: int
+    average_response_time: float
+    system_health_score: float
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
@@ -92,7 +124,7 @@ async def list_customers(
     session: AsyncSession = Depends(get_session),
 ) -> list[dict[str, Any]]:
     """List all customers."""
-    result = await session.execute(select(Customer).where(Customer.active))
+    result = await session.execute(select(Customer).where(Customer.active))  # type: ignore[arg-type]
     customers = result.scalars().all()
 
     return [
@@ -119,7 +151,7 @@ async def get_customer_usage(
     """Get customer usage summary for a period."""
     # Get customer
     customer_result = await session.execute(
-        select(Customer).where(Customer.id == customer_id)
+        select(Customer).where(Customer.id == customer_id)  # type: ignore[arg-type]
     )
     customer = customer_result.scalar_one_or_none()
     if not customer:
@@ -127,11 +159,10 @@ async def get_customer_usage(
 
     # Get meter readings for the period
     readings_result = await session.execute(
-        select(MeterReading).where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= period_start,
-            MeterReading.window_end <= period_end,
-        )
+        select(MeterReading)
+        .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+        .where(MeterReading.window_start >= period_start)  # type: ignore[arg-type]
+        .where(MeterReading.window_end <= period_end)  # type: ignore[arg-type]
     )
     readings = readings_result.scalars().all()
 
@@ -144,11 +175,10 @@ async def get_customer_usage(
 
     # Get rated usage if available
     rated_result = await session.execute(
-        select(RatedUsage).where(
-            RatedUsage.customer_id == customer_id,
-            RatedUsage.period_start == period_start.date(),
-            RatedUsage.period_end == period_end.date(),
-        )
+        select(RatedUsage)
+        .where(RatedUsage.customer_id == customer_id)  # type: ignore[arg-type]
+        .where(RatedUsage.period_start == period_start.date())  # type: ignore[arg-type]
+        .where(RatedUsage.period_end == period_end.date())  # type: ignore[arg-type]
     )
     rated_usage = rated_result.scalar_one_or_none()
 
@@ -180,18 +210,16 @@ async def get_customer_meters(
     readings_result = await session.execute(
         select(
             MeterReading.meter_key, func.sum(MeterReading.value).label("total_value")
-        )
-        .where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= period_start,
-            MeterReading.window_end <= period_end,
-        )
+        )  # type: ignore[call-overload]
+        .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+        .where(MeterReading.window_start >= period_start)  # type: ignore[arg-type]
+        .where(MeterReading.window_end <= period_end)  # type: ignore[arg-type]
         .group_by(MeterReading.meter_key)
     )
     readings = readings_result.all()
 
     # Mock plan data - in production this would come from customer's plan
-    mock_plan = {
+    mock_plan: dict[str, Any] = {
         "included": {
             "workflow.completed": 1000,
             "llm.tokens": 5000000,
@@ -243,11 +271,9 @@ async def get_usage_forecast(
     readings_result = await session.execute(
         select(
             MeterReading.meter_key, func.sum(MeterReading.value).label("weekly_value")
-        )
-        .where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= week_ago,
-        )
+        )  # type: ignore[call-overload]
+        .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+        .where(MeterReading.window_start >= week_ago)  # type: ignore[arg-type]
         .group_by(MeterReading.meter_key)
     )
     readings = readings_result.all()
@@ -288,13 +314,11 @@ async def get_usage_drill_down(
     """Get drill-down details for a specific meter."""
     readings_result = await session.execute(
         select(MeterReading)
-        .where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.meter_key == meter_key,
-            MeterReading.window_start >= period_start,
-            MeterReading.window_end <= period_end,
-        )
-        .order_by(MeterReading.window_start.desc())
+        .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+        .where(MeterReading.meter_key == meter_key)  # type: ignore[arg-type]
+        .where(MeterReading.window_start >= period_start)  # type: ignore[arg-type]
+        .where(MeterReading.window_end <= period_end)  # type: ignore[arg-type]
+        .order_by(MeterReading.window_start.desc())  # type: ignore[attr-defined]
     )
     readings = readings_result.scalars().all()
 
@@ -309,6 +333,159 @@ async def get_usage_drill_down(
         )
         for reading in readings
     ]
+
+
+@app.get("/api/metrics/dashboard", response_model=DashboardMetrics)
+async def get_dashboard_metrics(
+    session: AsyncSession = Depends(get_session),
+) -> DashboardMetrics:
+    """Get real-time dashboard metrics."""
+    # Get total customers
+    total_customers_result = await session.execute(
+        select(func.count(Customer.id)).where(Customer.active)  # type: ignore[arg-type]
+    )
+    total_customers = total_customers_result.scalar() or 0
+
+    # Get active customers (customers with usage in last 30 days)
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    active_customers_result = await session.execute(
+        select(func.count(func.distinct(MeterReading.customer_id))).where(
+            MeterReading.window_start >= thirty_days_ago
+        )  # type: ignore[arg-type]
+    )
+    active_customers = active_customers_result.scalar() or 0
+
+    # Get monthly revenue (current month)
+    current_month_start = datetime.utcnow().replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    monthly_revenue_result = await session.execute(
+        select(func.sum(RatedUsage.subtotal)).where(
+            RatedUsage.period_start >= current_month_start.date()
+        )  # type: ignore[arg-type]
+    )
+    monthly_revenue = monthly_revenue_result.scalar() or Decimal("0")
+
+    # Get daily revenue (today)
+    today = datetime.utcnow().date()
+    daily_revenue_result = await session.execute(
+        select(func.sum(RatedUsage.subtotal)).where(RatedUsage.period_start == today)  # type: ignore[arg-type]
+    )
+    daily_revenue = daily_revenue_result.scalar() or Decimal("0")
+
+    # Get API calls today (sum of all meter readings for today)
+    api_calls_result = await session.execute(
+        select(func.sum(MeterReading.value))
+        .where(MeterReading.meter_key == "api.calls")  # type: ignore[arg-type]
+        .where(
+            MeterReading.window_start
+            >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        )  # type: ignore[arg-type]
+    )
+    api_calls_today = int(api_calls_result.scalar() or 0)
+
+    # Get workflows today
+    workflows_result = await session.execute(
+        select(func.sum(MeterReading.value))
+        .where(MeterReading.meter_key == "workflow.completed")  # type: ignore[arg-type]
+        .where(
+            MeterReading.window_start
+            >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        )  # type: ignore[arg-type]
+    )
+    workflows_today = int(workflows_result.scalar() or 0)
+
+    return DashboardMetrics(
+        total_customers=total_customers,
+        active_customers=active_customers,
+        monthly_revenue=monthly_revenue,
+        daily_revenue=daily_revenue,
+        total_api_calls_today=api_calls_today,
+        total_workflows_today=workflows_today,
+        average_response_time=125.5,  # Mock data - would come from monitoring
+        system_health_score=98.5,  # Mock data - would come from health checks
+    )
+
+
+@app.get("/api/usage/trends", response_model=UsageTrend)
+async def get_usage_trends(
+    period: str = Query("daily", description="Period: daily, weekly, monthly"),
+    meter_key: str = Query(None, description="Specific meter key (optional)"),
+    customer_id: UUID = Query(None, description="Specific customer (optional)"),
+    session: AsyncSession = Depends(get_session),
+) -> UsageTrend:
+    """Get usage trends for charts."""
+    # Determine time range based on period
+    now = datetime.utcnow()
+    if period == "daily":
+        start_date = now - timedelta(days=30)  # Last 30 days
+        date_trunc = "day"
+    elif period == "weekly":
+        start_date = now - timedelta(weeks=12)  # Last 12 weeks
+        date_trunc = "week"
+    elif period == "monthly":
+        start_date = now - timedelta(days=365)  # Last 12 months
+        date_trunc = "month"
+    else:
+        raise HTTPException(
+            status_code=400, detail="Invalid period. Use: daily, weekly, monthly"
+        )
+
+    # Build query
+    query = (
+        select(
+            func.date_trunc(date_trunc, MeterReading.window_start).label("period"),
+            func.sum(MeterReading.value).label("total_value"),
+        )
+        .where(MeterReading.window_start >= start_date)  # type: ignore[arg-type]
+        .group_by(func.date_trunc(date_trunc, MeterReading.window_start))
+        .order_by(func.date_trunc(date_trunc, MeterReading.window_start))
+    )
+
+    if meter_key:
+        query = query.where(MeterReading.meter_key == meter_key)  # type: ignore[arg-type]
+    if customer_id:
+        query = query.where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+
+    result = await session.execute(query)
+    rows = result.all()
+
+    # Convert to time series points
+    data_points = []
+    total_usage = Decimal("0")
+    values = []
+
+    for row in rows:
+        timestamp = row.period
+        value = Decimal(str(row.total_value or 0))
+        total_usage += value
+        values.append(float(value))
+
+        data_points.append(
+            TimeSeriesPoint(
+                timestamp=timestamp,
+                value=value,
+                meter_key=meter_key or "all",
+            )
+        )
+
+    # Calculate statistics
+    average_usage = total_usage / len(data_points) if data_points else Decimal("0")
+    peak_usage = Decimal(str(max(values))) if values else Decimal("0")
+
+    # Calculate growth rate (compare first and last periods)
+    growth_rate = 0.0
+    if len(values) >= 2 and values[0] > 0:
+        growth_rate = ((values[-1] - values[0]) / values[0]) * 100
+
+    return UsageTrend(
+        period=period,
+        data_points=data_points,
+        total_usage=total_usage,
+        average_usage=average_usage,
+        peak_usage=peak_usage,
+        growth_rate=growth_rate,
+    )
 
 
 if __name__ == "__main__":

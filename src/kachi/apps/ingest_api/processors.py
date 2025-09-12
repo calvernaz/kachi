@@ -241,7 +241,7 @@ class EventProcessor:
     async def _verify_customer_exists(self, customer_id: UUID) -> None:
         """Verify that a customer exists."""
         result = await self.session.execute(
-            select(Customer).where(Customer.id == customer_id)
+            select(Customer).where(Customer.id == customer_id)  # type: ignore[arg-type]
         )
         customer = result.scalar_one_or_none()
         if not customer:

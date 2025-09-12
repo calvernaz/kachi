@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useCustomerStore } from '@/stores/customer'
-import MetricsGrid from '@/components/MetricsGrid.vue'
+import RealTimeMetrics from '@/components/RealTimeMetrics.vue'
+import UsageTrendChart from '@/components/UsageTrendChart.vue'
 
 const customerStore = useCustomerStore()
 const loading = ref(true)
@@ -32,8 +33,11 @@ onMounted(async () => {
 
     <!-- Dashboard Content -->
     <div v-else class="space-y-6">
-      <!-- Metrics Grid -->
-      <MetricsGrid />
+      <!-- Real-time Metrics -->
+      <RealTimeMetrics />
+
+      <!-- Usage Trends Chart -->
+      <UsageTrendChart />
 
       <!-- Recent Activity -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

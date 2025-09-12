@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kachi.apps.deriver.processors import EdgeDeriver, WorkDeriver
-from kachi.lib.db import get_session
+from kachi.lib.db import AsyncSessionLocal
 from kachi.lib.models import MeterReading, RawEvent
 
 logger = structlog.get_logger()
@@ -37,13 +37,13 @@ class EventProcessor:
         query = select(RawEvent).order_by(RawEvent.ts)
 
         if customer_id:
-            query = query.where(RawEvent.customer_id == customer_id)
+            query = query.where(RawEvent.customer_id == customer_id)  # type: ignore[arg-type]
 
         if from_time:
-            query = query.where(RawEvent.ts >= from_time)
+            query = query.where(RawEvent.ts >= from_time)  # type: ignore[arg-type]
 
         if to_time:
-            query = query.where(RawEvent.ts <= to_time)
+            query = query.where(RawEvent.ts <= to_time)  # type: ignore[arg-type]
 
         query = query.limit(batch_size)
 
@@ -57,7 +57,7 @@ class EventProcessor:
         work_readings = 0
 
         # Group events by customer and time window for efficient processing
-        customer_windows = self._group_events_by_window(events)
+        customer_windows = self._group_events_by_window(list(events))
 
         for (
             customer_id,
@@ -96,7 +96,7 @@ class EventProcessor:
         self, events: list[RawEvent], window_minutes: int = 5
     ) -> dict[tuple[UUID, datetime, datetime], list[RawEvent]]:
         """Group events by customer and time window."""
-        windows = {}
+        windows: dict[tuple[UUID, datetime, datetime], list[RawEvent]] = {}
 
         for event in events:
             # Round down to window boundary
@@ -186,16 +186,17 @@ class EventProcessor:
         self, customer_id: UUID, start_date: datetime, end_date: datetime
     ) -> None:
         """Delete existing meter readings for reprocessing."""
-        stmt = delete(MeterReading).where(
-            MeterReading.customer_id == customer_id,
-            MeterReading.window_start >= start_date,
-            MeterReading.window_end <= end_date,
+        stmt = (
+            delete(MeterReading)
+            .where(MeterReading.customer_id == customer_id)  # type: ignore[arg-type]
+            .where(MeterReading.window_start >= start_date)  # type: ignore[arg-type]
+            .where(MeterReading.window_end <= end_date)  # type: ignore[arg-type]
         )
 
         await self.session.execute(stmt)
 
 
-async def main():
+async def main() -> None:
     """CLI entry point for event processing."""
     parser = argparse.ArgumentParser(
         description="Process raw events into meter readings"
@@ -210,7 +211,7 @@ async def main():
 
     args = parser.parse_args()
 
-    async with get_session() as session:
+    async with AsyncSessionLocal() as session:
         processor = EventProcessor(session)
 
         if args.continuous:

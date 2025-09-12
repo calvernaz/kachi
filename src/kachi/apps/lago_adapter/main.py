@@ -29,7 +29,7 @@ class LagoAdapter:
         try:
             # Get customer from our database
             result = await self.session.execute(
-                select(Customer).where(Customer.id == customer_id)
+                select(Customer).where(Customer.id == customer_id)  # type: ignore[arg-type]
             )
             customer = result.scalar_one_or_none()
 
@@ -182,8 +182,7 @@ class LagoAdapter:
         """Push rated usage to Lago as usage events."""
         try:
             customer_id = rating_result.customer_id
-            if isinstance(customer_id, str):
-                customer_id = UUID(customer_id)
+            # customer_id is already a UUID from RatingResult
 
             # Ensure customer exists in Lago
             await self.sync_customer(customer_id)

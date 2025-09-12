@@ -105,7 +105,7 @@ def allocate_work_envelopes(
     usage_readings: list[UsageReading], policy: RatingPolicy
 ) -> dict[str, Decimal]:
     """Allocate edge envelopes based on work completed."""
-    envelopes = defaultdict(Decimal)
+    envelopes: dict[str, Decimal] = defaultdict(Decimal)
 
     # Get work meter readings
     work_usage = {

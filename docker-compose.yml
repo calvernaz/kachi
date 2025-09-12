@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: kachi
+      POSTGRES_USER: kachi
+      POSTGRES_PASSWORD: kachi_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kachi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ingestion API
+  ingest-api:
+    build: .
+    command: uv run uvicorn kachi.apps.ingest_api.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@postgres:5432/kachi
+      - REDIS_URL=redis://redis:6379/0
+      - LAGO_API_KEY=${LAGO_API_KEY:-}
+      - LAGO_API_URL=${LAGO_API_URL:-https://api.getlago.com/api/v1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/home/app/logs
+    restart: unless-stopped
+
+  # Dashboard API
+  dashboard-api:
+    build: .
+    command: uv run uvicorn kachi.apps.dashboard_api.main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@postgres:5432/kachi
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/home/app/logs
+    restart: unless-stopped
+
+  # Celery Worker for Event Processing
+  celery-worker:
+    build: .
+    command: uv run celery -A kachi.apps.deriver.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@postgres:5432/kachi
+      - REDIS_URL=redis://redis:6379/0
+      - LAGO_API_KEY=${LAGO_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/home/app/logs
+    restart: unless-stopped
+
+  # Celery Beat for Scheduled Tasks
+  celery-beat:
+    build: .
+    command: uv run celery -A kachi.apps.deriver.tasks beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@postgres:5432/kachi
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/home/app/logs
+    restart: unless-stopped
+
+  # Nginx for Frontend and Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend/dashboard/dist:/usr/share/nginx/html
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - ingest-api
+      - dashboard-api
+    restart: unless-stopped
+
+  # Database Migration Runner
+  migrate:
+    build: .
+    command: uv run alembic upgrade head
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@postgres:5432/kachi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: kachi-network

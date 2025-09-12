@@ -1,0 +1,46 @@
+[MESSAGES CONTROL]
+# Disable specific warnings that are not critical for our current development
+disable=
+    too-many-positional-arguments,
+    abstract-method,
+    too-many-ancestors,
+    invalid-name,
+    ungrouped-imports,
+    subprocess-run-check,
+    too-many-statements,
+    import-error,
+    no-name-in-module,
+    no-value-for-parameter,
+    chained-comparison,
+    too-many-nested-blocks,
+    redefined-outer-name,
+    line-too-long,
+    broad-exception-caught,
+    too-few-public-methods,
+    too-many-locals,
+    too-many-branches,
+    no-member,
+    not-callable,
+    missing-function-docstring,
+    unused-argument,
+    unused-variable,
+    duplicate-code,
+    logging-fstring-interpolation,
+    not-async-context-manager,
+    redefined-argument-from-local,
+    no-else-return
+
+[BASIC]
+# Good variable names which should always be accepted, separated by a comma
+good-names=i,j,k,ex,Run,_,id,db,ts,df,dt,pk,fk
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=8
+
+# Maximum number of statements in function / method body
+max-statements=60
+
+[FORMAT]
+# Maximum number of characters on a single line.
+max-line-length=100

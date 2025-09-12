@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, Index, Text, UniqueConstraint
+from sqlalchemy import Column, Index, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, BIGINT, JSONB, TIMESTAMP
 from sqlmodel import Field, SQLModel
 
@@ -20,6 +20,14 @@ class Customer(SQLModel, table=True):
     name: str
     currency: str = Field(default="EUR")
     status: str = Field(default="active")
+    active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now()),
+    )
+    updated_at: datetime | None = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True), onupdate=func.now())
+    )
 
 
 class WorkflowDefinition(SQLModel, table=True):
@@ -121,6 +129,9 @@ class RatedUsage(SQLModel, table=True):
     subtotal: Decimal = Field(decimal_places=6, max_digits=20)
     cogs: Decimal = Field(decimal_places=6, max_digits=20)
     margin: Decimal = Field(decimal_places=6, max_digits=20)
+    lago_pushed_at: datetime | None = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True))
+    )
 
 
 class AuditLog(SQLModel, table=True):

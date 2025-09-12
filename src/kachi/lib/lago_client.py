@@ -44,7 +44,7 @@ class LagoClientWrapper:
                 "timezone": "UTC",
             }
 
-            customer = self.client.customers().create(customer_data)
+            customer = self.client.customers().create(customer_data)  # type: ignore[operator]
             logger.info("Created Lago customer: %s", customer.external_id)
             return customer
 
@@ -55,7 +55,7 @@ class LagoClientWrapper:
     async def get_customer(self, customer_id: UUID) -> Any | None:
         """Get a customer from Lago."""
         try:
-            customer = self.client.customers().find(str(customer_id))
+            customer = self.client.customers().find(str(customer_id))  # type: ignore[operator]
             return customer
         except Exception as exc:
             logger.warning("Customer %s not found in Lago: %s", customer_id, exc)
@@ -79,7 +79,7 @@ class LagoClientWrapper:
                 "field_name": field_name,
             }
 
-            metric = self.client.billable_metrics().create(metric_data)
+            metric = self.client.billable_metrics().create(metric_data)  # type: ignore[operator]
             logger.info("Created Lago billable metric: %s", code)
             return metric
 
@@ -109,7 +109,7 @@ class LagoClientWrapper:
                 "charges": charges or [],
             }
 
-            plan = self.client.plans().create(plan_data)
+            plan = self.client.plans().create(plan_data)  # type: ignore[operator]
             logger.info("Created Lago plan: %s", code)
             return plan
 
@@ -128,7 +128,7 @@ class LagoClientWrapper:
                 "external_id": external_id or f"{customer_id}_{plan_code}",
             }
 
-            subscription = self.client.subscriptions().create(subscription_data)
+            subscription = self.client.subscriptions().create(subscription_data)  # type: ignore[operator]
             logger.info("Created Lago subscription for customer %s", customer_id)
             return subscription
 
@@ -160,7 +160,7 @@ class LagoClientWrapper:
                 "properties": {"value": float(value)},
             }
 
-            event = self.client.events().create(event_data)
+            event = self.client.events().create(event_data)  # type: ignore[operator]
             logger.debug(
                 "Sent usage event: %s=%s for %s", meter_code, value, customer_id
             )
@@ -210,7 +210,7 @@ class LagoClientWrapper:
                 "amount_currency": currency,
             }
 
-            addon = self.client.add_ons().create(addon_data)
+            addon = self.client.add_ons().create(addon_data)  # type: ignore[operator]
             logger.info("Created Lago add-on: %s", code)
             return addon
 
@@ -250,7 +250,7 @@ class LagoClientWrapper:
             if status:
                 params["status"] = status
 
-            invoices = self.client.invoices().find_all(**params)
+            invoices = self.client.invoices().find_all(**params)  # type: ignore[operator]
             return invoices.invoices if hasattr(invoices, "invoices") else []
 
         except Exception as exc:
@@ -260,7 +260,7 @@ class LagoClientWrapper:
     async def get_invoice(self, invoice_id: str) -> Any | None:
         """Get a specific invoice from Lago."""
         try:
-            invoice = self.client.invoices().find(invoice_id)
+            invoice = self.client.invoices().find(invoice_id)  # type: ignore[operator]
             return invoice
         except Exception as exc:
             logger.warning("Invoice %s not found: %s", invoice_id, exc)
