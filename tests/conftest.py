@@ -17,7 +17,19 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:
 # For SQLite testing, we need to handle JSONB compatibility
 if "sqlite" in TEST_DATABASE_URL:
     # Override JSONB with TEXT for SQLite compatibility
-    from sqlalchemy.dialects.postgresql import JSONB
+    import sys
+    from unittest.mock import MagicMock
+    from sqlalchemy import Text
+
+    # Create a mock module that replaces JSONB with Text
+    mock_postgresql = MagicMock()
+    mock_postgresql.JSONB = Text
+    mock_postgresql.ARRAY = Text  # Also handle ARRAY
+    mock_postgresql.BIGINT = Text  # And BIGINT
+    mock_postgresql.TIMESTAMP = Text  # And TIMESTAMP
+
+    # Replace the postgresql module in sys.modules
+    sys.modules['sqlalchemy.dialects.postgresql'] = mock_postgresql
     from sqlalchemy.types import TEXT, TypeDecorator
 
     class JSONBCompat(TypeDecorator):
@@ -36,9 +48,8 @@ if "sqlite" in TEST_DATABASE_URL:
                 return json.loads(value)
             return value
 
-    # Monkey patch JSONB for testing
-    original_jsonb = JSONB
-    JSONB.__new__ = lambda cls, *args, **kwargs: JSONBCompat()
+    # Update the mock to use JSONBCompat
+    mock_postgresql.JSONB = JSONBCompat
 
 
 @pytest.fixture(scope="session")

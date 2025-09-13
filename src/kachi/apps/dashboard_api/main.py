@@ -17,7 +17,12 @@ from kachi.lib.cogs_calculator import COGSCalculator
 from kachi.lib.db import get_session
 from kachi.lib.models import Customer, MeterReading, RatedUsage
 from kachi.lib.success_fees import OutcomeVerificationManager, SuccessFeeBilling
-from kachi.lib.usage_alerts import AlertType, UsageAlertsManager, UsageAlert, AlertSeverity
+from kachi.lib.usage_alerts import (
+    AlertSeverity,
+    AlertType,
+    UsageAlert,
+    UsageAlertsManager,
+)
 
 logger = logging.getLogger(__name__)
 
