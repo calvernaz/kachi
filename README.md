@@ -86,6 +86,12 @@ GET  /health            # Service health check
 - **🔧 Work Deriver**: Workflows, internal processes, compute operations
 - **📊 Real-time Processing**: Event-driven with automatic retry and DLQ
 
+#### 3. **📊 External Metrics Collector** (`src/kachi/apps/metrics_collector/`)
+- **🔌 Multi-Source Connectors**: Prometheus, InfluxDB, DataDog integration
+- **🔄 Pull-Based Collection**: Scheduled metric retrieval from external systems
+- **🎯 Intelligent Mapping**: Transform external metrics to Kachi meter format
+- **⚡ Real-time Processing**: Background tasks with retry logic and error handling
+
 #### 3. **💰 Rating Engine** (`src/kachi/apps/rater/`)
 ```python
 # Sophisticated pricing with multiple strategies
@@ -274,6 +280,96 @@ curl "http://localhost:8002/api/system/health"
 
 # Alerts
 curl "http://localhost:8002/api/alerts?severity=critical&status=active"
+```
+
+#### External Metrics Collection
+```bash
+# Get metrics connectors status
+curl "http://localhost:8002/api/metrics/connectors"
+
+# Trigger manual metrics collection
+curl -X POST "http://localhost:8002/api/metrics/collect"
+
+# Get available metrics from Prometheus
+curl "http://localhost:8002/api/metrics/available-metrics/prometheus"
+
+# Add custom metric mapping
+curl -X POST "http://localhost:8002/api/metrics/mappings/prometheus" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "external_metric_name": "custom_api_calls_total",
+    "kachi_meter_key": "api.calls",
+    "transformation_function": "rate",
+    "customer_id_label": "customer_id",
+    "scaling_factor": 1.0
+  }'
+```
+
+---
+
+## 🔌 External Metrics Integration
+
+Kachi supports **pull-based metrics collection** from external monitoring systems, enabling enterprise integration with existing observability infrastructure.
+
+### **📊 Supported Data Sources**
+
+#### **Prometheus**
+```bash
+# Configuration
+PROMETHEUS_ENABLED=true
+PROMETHEUS_ENDPOINT=http://localhost:9090
+PROMETHEUS_BEARER_TOKEN=your_token_here
+PROMETHEUS_COLLECTION_INTERVAL=300
+```
+
+#### **InfluxDB** (Coming Soon)
+```bash
+INFLUXDB_ENABLED=true
+INFLUXDB_ENDPOINT=http://localhost:8086
+INFLUXDB_TOKEN=your_token_here
+INFLUXDB_ORG=your_org
+INFLUXDB_BUCKET=your_bucket
+```
+
+#### **DataDog** (Coming Soon)
+```bash
+DATADOG_ENABLED=true
+DATADOG_API_KEY=your_api_key_here
+DATADOG_APP_KEY=your_app_key_here
+```
+
+### **🎯 Metric Mapping**
+
+Transform external metrics to Kachi's billing format:
+
+```python
+# Example: Map Prometheus HTTP requests to API calls
+MetricMapping(
+    external_metric_name="http_requests_total",
+    kachi_meter_key="api.calls",
+    transformation_function="rate",
+    customer_id_label="customer_id",
+    scaling_factor=1.0,
+    label_filters={"method": "GET"}
+)
+```
+
+### **⚡ Collection Modes**
+
+1. **Scheduled Collection**: Automatic background collection every 5 minutes
+2. **Manual Triggers**: On-demand collection via API endpoints
+3. **Real-time Processing**: Immediate transformation and storage
+
+### **🔧 Configuration**
+
+```bash
+# Enable metrics collection
+METRICS_COLLECTION_ENABLED=true
+METRICS_COLLECTION_INTERVAL=300
+
+# Configure Prometheus
+PROMETHEUS_ENDPOINT=http://your-prometheus:9090
+PROMETHEUS_BEARER_TOKEN=your_bearer_token
 ```
 
 ---

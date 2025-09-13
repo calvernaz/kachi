@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kachi.apps.metrics_collector.api import router as metrics_router
 from kachi.lib.db import get_session
 from kachi.lib.models import Customer, MeterReading, RatedUsage
 
@@ -22,6 +23,9 @@ app = FastAPI(
     description="Customer usage dashboard and billing transparency",
     version="1.0.0",
 )
+
+# Include metrics collection API
+app.include_router(metrics_router)
 
 # CORS middleware for frontend
 app.add_middleware(
