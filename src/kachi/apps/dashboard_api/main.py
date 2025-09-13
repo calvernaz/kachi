@@ -13,8 +13,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kachi.apps.metrics_collector.api import router as metrics_router
+from kachi.lib.cogs_calculator import COGSCalculator
 from kachi.lib.db import get_session
 from kachi.lib.models import Customer, MeterReading, RatedUsage
+from kachi.lib.success_fees import OutcomeVerificationManager, SuccessFeeBilling
+from kachi.lib.usage_alerts import AlertType, UsageAlertsManager, UsageAlert, AlertSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -137,9 +140,9 @@ async def list_customers(
             "name": customer.name,
             "lago_customer_id": customer.lago_customer_id,
             "currency": customer.currency,
-            "created_at": customer.created_at.isoformat()
-            if customer.created_at
-            else None,
+            "created_at": (
+                customer.created_at.isoformat() if customer.created_at else None
+            ),
         }
         for customer in customers
     ]
@@ -490,6 +493,267 @@ async def get_usage_trends(
         peak_usage=peak_usage,
         growth_rate=growth_rate,
     )
+
+
+@app.get("/api/margin/analysis")
+async def get_margin_analysis(
+    customer_id: UUID,
+    period_start: str = Query(..., description="Period start (YYYY-MM-DD)"),
+    period_end: str = Query(..., description="Period end (YYYY-MM-DD)"),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Get comprehensive margin analysis for a customer and period."""
+    try:
+        start_date = datetime.fromisoformat(period_start)
+        end_date = datetime.fromisoformat(period_end)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
+        ) from exc
+
+    # Initialize COGS calculator
+    cogs_calculator = COGSCalculator(session)
+
+    # Get rated usage for the period to calculate revenue
+    rated_usage_result = await session.execute(
+        select(RatedUsage).where(
+            RatedUsage.customer_id == customer_id,
+            RatedUsage.period_start >= period_start,
+            RatedUsage.period_end <= period_end,
+        )
+    )
+    rated_usage_records = rated_usage_result.scalars().all()
+
+    if not rated_usage_records:
+        return {
+            "customer_id": str(customer_id),
+            "period_start": period_start,
+            "period_end": period_end,
+            "total_revenue": 0,
+            "total_cogs": 0,
+            "gross_margin": 0,
+            "margin_percentage": 0,
+            "message": "No rated usage found for this period",
+        }
+
+    # Calculate revenue from rated usage
+    revenue_lines = []
+    for record in rated_usage_records:
+        items = record.items_json or {}
+        for item in items.get("lines", []):
+            revenue_lines.append(
+                {
+                    "meter_key": item.get("meter_key", "unknown"),
+                    "amount": item.get("amount", 0),
+                    "line_type": item.get("line_type", "usage"),
+                    "usage_quantity": item.get("usage_quantity", 0),
+                }
+            )
+
+    # Calculate comprehensive margin analysis
+    margin_analysis = await cogs_calculator.calculate_margin_analysis(
+        customer_id, start_date, end_date, revenue_lines
+    )
+
+    return margin_analysis
+
+
+@app.get("/api/cogs/breakdown")
+async def get_cogs_breakdown(
+    customer_id: UUID,
+    period_start: str = Query(..., description="Period start (YYYY-MM-DD)"),
+    period_end: str = Query(..., description="Period end (YYYY-MM-DD)"),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Get detailed COGS breakdown by cost type."""
+    try:
+        start_date = datetime.fromisoformat(period_start)
+        end_date = datetime.fromisoformat(period_end)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD"
+        ) from exc
+
+    cogs_calculator = COGSCalculator(session)
+    cogs_data = await cogs_calculator.calculate_period_cogs(
+        customer_id, start_date, end_date
+    )
+
+    return {
+        "customer_id": str(customer_id),
+        **cogs_data,
+    }
+
+
+@app.post("/api/outcomes/record")
+async def record_outcome(
+    workflow_run_id: UUID,
+    outcome_key: str,
+    outcome_metadata: dict[str, Any] | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Record an outcome event for success fee billing."""
+    success_fee_billing = SuccessFeeBilling(session)
+
+    verification = await success_fee_billing.record_outcome_event(
+        workflow_run_id=workflow_run_id,
+        outcome_key=outcome_key,
+        outcome_metadata=outcome_metadata,
+    )
+
+    return {
+        "verification_id": verification.id,
+        "outcome_key": outcome_key,
+        "status": verification.status,
+        "holdback_until": verification.holdback_until.isoformat()
+        if verification.holdback_until
+        else None,
+        "settlement_days": verification.settlement_days,
+    }
+
+
+@app.get("/api/outcomes/pending")
+async def get_pending_outcomes(
+    external_system: str = Query(None, description="Filter by external system"),
+    session: AsyncSession = Depends(get_session),
+) -> list[dict[str, Any]]:
+    """Get pending outcome verifications."""
+    verification_manager = OutcomeVerificationManager(session)
+    pending_outcomes = await verification_manager.get_pending_outcomes(external_system)
+
+    return [
+        {
+            "id": outcome.id,
+            "workflow_run_id": str(outcome.workflow_run_id),
+            "outcome_key": outcome.outcome_key,
+            "external_system": outcome.external_system,
+            "external_ref": outcome.external_ref,
+            "status": outcome.status,
+            "holdback_until": outcome.holdback_until.isoformat()
+            if outcome.holdback_until
+            else None,
+            "settlement_days": outcome.settlement_days,
+            "created_at": outcome.created_at.isoformat(),
+        }
+        for outcome in pending_outcomes
+    ]
+
+
+@app.post("/api/outcomes/{verification_id}/verify")
+async def verify_outcome(
+    verification_id: int,
+    verified: bool = True,
+    reversal_reason: str | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Verify or reverse an outcome."""
+    verification_manager = OutcomeVerificationManager(session)
+
+    verification = await verification_manager.verify_outcome(
+        verification_id=verification_id,
+        verified=verified,
+        reversal_reason=reversal_reason,
+    )
+
+    return {
+        "id": verification.id,
+        "status": verification.status,
+        "verified_at": verification.verified_at.isoformat()
+        if verification.verified_at
+        else None,
+        "reversal_reason": verification.reversal_reason,
+    }
+
+
+@app.post("/api/alerts/configure")
+async def configure_customer_alerts(
+    customer_id: UUID,
+    alert_configs: list[dict[str, Any]],
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Configure usage alerts for a customer."""
+    alerts_manager = UsageAlertsManager(session)
+    alerts_manager.configure_customer_alerts(customer_id, alert_configs)
+
+    return {
+        "customer_id": str(customer_id),
+        "configured_alerts": len(alert_configs),
+        "message": "Alert configuration updated successfully",
+    }
+
+
+@app.get("/api/alerts/check/{customer_id}")
+async def check_customer_alerts(
+    customer_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Check and trigger alerts for a customer."""
+    alerts_manager = UsageAlertsManager(session)
+    alerts = await alerts_manager.check_and_send_alerts(customer_id)
+
+    return {
+        "customer_id": str(customer_id),
+        "alerts_triggered": len(alerts),
+        "alerts": [
+            {
+                "alert_type": alert.alert_type.value,
+                "severity": alert.severity.value,
+                "message": alert.message,
+                "meter_key": alert.meter_key,
+                "current_usage": str(alert.current_usage)
+                if alert.current_usage
+                else None,
+                "threshold": str(alert.threshold) if alert.threshold else None,
+                "triggered_at": alert.triggered_at.isoformat(),
+            }
+            for alert in alerts
+        ],
+    }
+
+
+@app.get("/api/usage/summary/{customer_id}")
+async def get_usage_summary(
+    customer_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Get usage summary and alert status for a customer."""
+    alerts_manager = UsageAlertsManager(session)
+    summary = await alerts_manager.get_customer_usage_summary(customer_id)
+    return summary
+
+
+@app.post("/api/alerts/test")
+async def test_alert_notification(
+    customer_id: UUID,
+    alert_type: str = "usage_threshold",
+    message: str = "Test alert notification",
+    channels: list[str] | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Test alert notification system."""
+    alerts_manager = UsageAlertsManager(session)
+    channels = channels or ["email"]
+
+    # Create test alert
+    test_alert = UsageAlert(
+        customer_id=customer_id,
+        alert_type=AlertType(alert_type),
+        severity=AlertSeverity.WARNING,
+        message=message,
+        meter_key="api.calls",
+        current_usage=Decimal("8500"),
+        threshold=Decimal("80"),
+    )
+
+    # Send test notification
+    results = await alerts_manager.notification_service.send_alert(test_alert, channels)
+
+    return {
+        "customer_id": str(customer_id),
+        "test_alert_sent": True,
+        "channels_tested": channels,
+        "results": results,
+    }
 
 
 if __name__ == "__main__":

@@ -134,6 +134,34 @@ class RatedUsage(SQLModel, table=True):
     )
 
 
+class OutcomeVerification(SQLModel, table=True):
+    """Outcome verification for success fee billing."""
+
+    __tablename__ = "outcome_verifications"
+
+    id: int = Field(sa_column=Column(BIGINT, primary_key=True, autoincrement=True))
+    workflow_run_id: UUID = Field(foreign_key="workflow_runs.id", index=True)
+    outcome_key: str  # e.g., "ticket_resolved", "meeting_booked"
+    external_system: str  # e.g., "zendesk", "salesforce", "stripe"
+    external_ref: str  # External system reference ID
+    status: str = Field(default="pending")  # pending, verified, reversed
+    verified_at: datetime | None = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True))
+    )
+    reversal_reason: str | None = None
+    holdback_until: datetime | None = Field(
+        default=None, sa_column=Column(TIMESTAMP(timezone=True))
+    )
+    settlement_days: int = Field(default=0)
+    outcome_metadata: dict[str, Any] | None = Field(
+        sa_column=Column(JSONB), default=None
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now()),
+    )
+
+
 class AuditLog(SQLModel, table=True):
     """Audit trail for all adjustments and disputes."""
 

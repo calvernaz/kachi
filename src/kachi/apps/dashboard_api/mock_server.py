@@ -556,12 +556,14 @@ async def get_billing_preview(
                         {
                             "tier": f"{tier['from']:,} - {tier['to'] or '∞'}",
                             "price": tier["price"],
-                            "usage_in_tier": min(
-                                usage - tier["from"],
-                                (tier["to"] or usage) - tier["from"],
-                            )
-                            if usage > tier["from"]
-                            else 0,
+                            "usage_in_tier": (
+                                min(
+                                    usage - tier["from"],
+                                    (tier["to"] or usage) - tier["from"],
+                                )
+                                if usage > tier["from"]
+                                else 0
+                            ),
                         }
                         for tier in pricing_tiers[meter]
                     ],
@@ -698,22 +700,26 @@ async def get_alerts(
                 "description": f"Alert description for {random.choice(alert_types).lower()}",
                 "severity": alert_severity,
                 "status": alert_status,
-                "customer_id": f"customer-{random.randint(1, 20)}"
-                if random.random() > 0.3
-                else None,
-                "meter_key": random.choice(
-                    ["api.calls", "workflows", "llm.tokens", "storage"]
-                )
-                if random.random() > 0.5
-                else None,
+                "customer_id": (
+                    f"customer-{random.randint(1, 20)}"
+                    if random.random() > 0.3
+                    else None
+                ),
+                "meter_key": (
+                    random.choice(["api.calls", "workflows", "llm.tokens", "storage"])
+                    if random.random() > 0.5
+                    else None
+                ),
                 "created_at": (
                     datetime.utcnow() - timedelta(hours=random.randint(1, 72))
                 ).isoformat(),
                 "resolved_at": (
-                    datetime.utcnow() - timedelta(hours=random.randint(1, 24))
-                ).isoformat()
-                if alert_status == "resolved"
-                else None,
+                    (
+                        datetime.utcnow() - timedelta(hours=random.randint(1, 24))
+                    ).isoformat()
+                    if alert_status == "resolved"
+                    else None
+                ),
                 "actions": [
                     "Investigate customer usage patterns",
                     "Check system performance metrics",
@@ -780,11 +786,13 @@ async def get_system_health() -> dict[str, Any]:
     health_score = (healthy_components / len(components)) * 100
 
     return {
-        "overall_status": "healthy"
-        if health_score > 90
-        else "degraded"
-        if health_score > 70
-        else "unhealthy",
+        "overall_status": (
+            "healthy"
+            if health_score > 90
+            else "degraded"
+            if health_score > 70
+            else "unhealthy"
+        ),
         "health_score": round(health_score, 1),
         "components": components,
         "metrics": {

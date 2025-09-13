@@ -179,9 +179,9 @@ class EventProcessor:
             span_id=request.span_id,
             payload_json={
                 "event_name": request.event_name,
-                "workflow_run_id": str(request.workflow_run_id)
-                if request.workflow_run_id
-                else None,
+                "workflow_run_id": (
+                    str(request.workflow_run_id) if request.workflow_run_id else None
+                ),
                 "attributes": request.attributes,
                 "outcome": self._extract_outcome_attributes(
                     request.attributes
@@ -215,14 +215,16 @@ class EventProcessor:
                 "workflow.completed": 23.0,
             },
             estimated_cost=125.50,
-            breakdown={
-                "base_fee": 50.0,
-                "usage_charges": 75.50,
-                "included_allowances": {"llm.tokens": 10000, "api.calls": 1000},
-                "overage_charges": {"llm.tokens": 70.0, "api.calls": 5.50},
-            }
-            if include_breakdown
-            else None,
+            breakdown=(
+                {
+                    "base_fee": 50.0,
+                    "usage_charges": 75.50,
+                    "included_allowances": {"llm.tokens": 10000, "api.calls": 1000},
+                    "overage_charges": {"llm.tokens": 70.0, "api.calls": 5.50},
+                }
+                if include_breakdown
+                else None
+            ),
         )
 
     async def create_adjustment(self, adjustment_data: dict[str, Any]) -> int:
@@ -254,9 +256,11 @@ class EventProcessor:
         try:
             return BillingAttributes(
                 customer_id=UUID(attributes.get("billing.customer_id")),
-                workflow_run_id=UUID(attributes.get("billing.workflow_run_id"))
-                if attributes.get("billing.workflow_run_id")
-                else None,
+                workflow_run_id=(
+                    UUID(attributes.get("billing.workflow_run_id"))
+                    if attributes.get("billing.workflow_run_id")
+                    else None
+                ),
                 meter_candidates=attributes.get("billing.meter_candidates", []),
             )
         except (ValueError, TypeError):

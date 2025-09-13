@@ -4,11 +4,13 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kachi.lib.cogs_calculator import COGSCalculator
 from kachi.lib.models import MeterReading, RatedUsage
 from kachi.lib.rating_policies import (
     EnvelopeAllocation,
@@ -24,6 +26,7 @@ from kachi.lib.rating_policies import (
     is_edge_meter,
     is_work_meter,
 )
+from kachi.lib.success_fees import SuccessFeeBilling, SuccessFeeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,8 @@ class RatingEngine:
 
     def __init__(self, session: AsyncSession):
         self.session = session
+        self.cogs_calculator = COGSCalculator(session)
+        self.success_fee_billing = SuccessFeeBilling(session)
 
     async def rate_customer_period(
         self,
@@ -97,6 +102,12 @@ class RatingEngine:
                     description="Monthly base fee",
                 )
             )
+
+        # Calculate success fees
+        success_fee_lines = await self._calculate_success_fees(
+            customer_id, period_start, period_end, policy
+        )
+        lines.extend(success_fee_lines)
 
         # Calculate totals
         subtotal = sum((line.amount for line in lines), Decimal("0"))
@@ -347,15 +358,89 @@ class RatingEngine:
     async def _estimate_cogs(
         self,
         lines: list[RatedLine],
-        _customer_id: UUID,
-        _period_start: datetime,
-        _period_end: datetime,
+        customer_id: UUID,
+        period_start: datetime,
+        period_end: datetime,
     ) -> Decimal:
-        """Estimate cost of goods sold for the rated usage."""
-        # This would integrate with cost tracking system
-        # For now, return a simple estimate
-        total_revenue = sum(line.amount for line in lines)
-        return total_revenue * Decimal("0.3")  # Assume 30% COGS
+        """Calculate actual cost of goods sold for the rated usage."""
+        # Use the COGS calculator to get real cost data
+        cogs_data = await self.cogs_calculator.calculate_period_cogs(
+            customer_id, period_start, period_end
+        )
+        return cogs_data["total_cogs"]
+
+    async def calculate_margin_analysis(
+        self,
+        customer_id: UUID,
+        period_start: datetime,
+        period_end: datetime,
+        rating_result: RatingResult,
+    ) -> dict[str, Any]:
+        """Calculate comprehensive margin analysis for a rating result."""
+        # Convert rating lines to the format expected by COGS calculator
+        revenue_lines = [
+            {
+                "meter_key": line.meter_key,
+                "amount": line.amount,
+                "line_type": line.line_type,
+                "usage_quantity": line.usage_quantity,
+            }
+            for line in rating_result.lines
+        ]
+
+        return await self.cogs_calculator.calculate_margin_analysis(
+            customer_id, period_start, period_end, revenue_lines
+        )
+
+    async def _calculate_success_fees(
+        self,
+        customer_id: UUID,
+        period_start: datetime,
+        period_end: datetime,
+        policy: RatingPolicy,
+    ) -> list[RatedLine]:
+        """Calculate success fee lines for the billing period."""
+        if not policy.success_fees:
+            return []
+
+        # Convert success fee configs
+        success_fee_configs = []
+        for meter_key, config_data in policy.success_fees.items():
+            success_fee_configs.append(
+                SuccessFeeConfig(
+                    meter_key=meter_key,
+                    price_per_unit=Decimal(str(config_data.get("price_per_unit", 0))),
+                    conditions=config_data.get("conditions"),
+                    settlement_days=config_data.get("settlement_days", 7),
+                    external_verification=config_data.get(
+                        "external_verification", False
+                    ),
+                    external_system=config_data.get("external_system"),
+                )
+            )
+
+        # Calculate success fees
+        success_fee_data = await self.success_fee_billing.calculate_success_fees(
+            customer_id, period_start, period_end, success_fee_configs
+        )
+
+        # Convert to RatedLine objects
+        success_fee_lines = []
+        for fee_data in success_fee_data:
+            success_fee_lines.append(
+                RatedLine(
+                    meter_key=fee_data["meter_key"],
+                    line_type=fee_data["line_type"],
+                    usage_quantity=Decimal(str(fee_data["quantity"])),
+                    unit_price=fee_data["unit_price"],
+                    amount=fee_data["amount"],
+                    description=fee_data["description"],
+                    included_consumed=Decimal("0"),
+                    envelope_consumed=Decimal("0"),
+                )
+            )
+
+        return success_fee_lines
 
     def _create_empty_result(
         self, customer_id: UUID, period_start: datetime, period_end: datetime

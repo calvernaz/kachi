@@ -48,6 +48,9 @@ class RatingPolicy(BaseModel):
     spend_cap: Decimal | None = None
     discount_percent: Decimal = Field(default=Decimal("0"))
 
+    # Success fee configurations
+    success_fees: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
 
 class UsageReading(BaseModel):
     """A single meter reading for rating."""
