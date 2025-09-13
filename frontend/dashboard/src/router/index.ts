@@ -34,6 +34,11 @@ const router = createRouter({
       name: 'billing',
       component: () => import('../views/BillingView.vue')
     },
+    {
+      path: '/advanced-analytics',
+      name: 'advanced-analytics',
+      component: () => import('../views/AdvancedAnalyticsView.vue')
+    },
   ],
 })
 

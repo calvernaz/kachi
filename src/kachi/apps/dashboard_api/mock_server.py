@@ -1,5 +1,6 @@
 """Mock Dashboard API server for testing without database."""
 
+import math
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -804,6 +805,271 @@ async def get_system_health() -> dict[str, Any]:
                 "impact": "low",
             }
         ],
+    }
+
+
+@app.get("/api/analytics/predictive-billing")
+async def get_predictive_billing(
+    timeframe: str = Query("6m", description="Timeframe: 3m, 6m, 12m"),
+    customer_id: str = Query("123", description="Customer ID"),
+) -> dict[str, Any]:
+    """Get predictive billing forecast with ML insights."""
+
+    # Generate forecast data based on timeframe
+    periods = {"3m": 12, "6m": 24, "12m": 48}[timeframe]
+
+    forecast_data = []
+    for i in range(periods):
+        date = datetime.utcnow() - timedelta(days=30 * (periods - i))
+
+        # Generate realistic cost progression with seasonality
+        base_cost = 1000 + (i * 50)  # Growth trend
+        seasonal_factor = 1 + 0.2 * math.sin(i * 0.5)  # Seasonal variation
+        noise = random.uniform(-50, 50)  # Random variation
+
+        cost = base_cost * seasonal_factor + noise
+
+        forecast_data.append({
+            "date": date.strftime("%Y-%m-%d"),
+            "actual_cost": cost if i < periods * 0.6 else None,
+            "predicted_cost": cost if i >= periods * 0.6 else None,
+            "confidence_upper": cost * 1.15 if i >= periods * 0.6 else None,
+            "confidence_lower": cost * 0.85 if i >= periods * 0.6 else None,
+        })
+
+    return {
+        "timeframe": timeframe,
+        "customer_id": customer_id,
+        "forecast_data": forecast_data,
+        "model_metrics": {
+            "accuracy": random.uniform(90, 96),
+            "mape": random.uniform(3, 8),
+            "confidence": random.uniform(88, 95),
+            "r_squared": random.uniform(0.85, 0.92),
+        },
+        "seasonal_patterns": [
+            {"period": "Q1", "impact": 15, "description": "High usage period"},
+            {"period": "Q2", "impact": 8, "description": "Moderate growth"},
+            {"period": "Q3", "impact": -5, "description": "Summer slowdown"},
+            {"period": "Q4", "impact": 22, "description": "Year-end surge"},
+        ],
+        "ai_insights": [
+            {
+                "priority": "high",
+                "message": "API usage trending 25% above seasonal norms",
+                "recommendation": "Consider volume discount tier for cost reduction",
+            },
+            {
+                "priority": "medium",
+                "message": "LLM token consumption correlates with business hours",
+                "recommendation": "Implement caching during peak hours",
+            },
+        ],
+    }
+
+
+@app.get("/api/analytics/cost-forecasting")
+async def get_cost_forecasting(
+    model_type: str = Query("seasonal", description="Model: linear, polynomial, seasonal, neural"),
+    horizon: int = Query(6, description="Forecast horizon in months"),
+) -> dict[str, Any]:
+    """Get advanced cost forecasting with multiple ML models."""
+
+    # Model performance varies by type
+    model_performance = {
+        "linear": {"accuracy": 87.3, "mape": 12.7, "confidence": 78, "r2": 0.76},
+        "polynomial": {"accuracy": 91.8, "mape": 8.2, "confidence": 85, "r2": 0.84},
+        "seasonal": {"accuracy": 94.2, "mape": 5.8, "confidence": 92, "r2": 0.89},
+        "neural": {"accuracy": 96.1, "mape": 3.9, "confidence": 95, "r2": 0.92},
+    }
+
+    performance = model_performance.get(model_type, model_performance["seasonal"])
+
+    # Generate forecast scenarios
+    base_cost = 1350.00
+    scenarios = {
+        "conservative": {
+            "probability": 75,
+            "next_month": base_cost * 0.85,
+            "next_quarter": base_cost * 0.85 * 3,
+            "annual": base_cost * 0.85 * 12,
+            "description": "Based on current patterns with minimal growth",
+        },
+        "most_likely": {
+            "probability": 85,
+            "next_month": base_cost,
+            "next_quarter": base_cost * 3.1,
+            "annual": base_cost * 12.5,
+            "description": "Expected scenario with seasonal trends",
+        },
+        "aggressive": {
+            "probability": 45,
+            "next_month": base_cost * 1.22,
+            "next_quarter": base_cost * 1.22 * 3.2,
+            "annual": base_cost * 1.22 * 13,
+            "description": "High growth with increased adoption",
+        },
+    }
+
+    return {
+        "model_type": model_type,
+        "horizon_months": horizon,
+        "performance_metrics": performance,
+        "forecast_scenarios": scenarios,
+        "optimization_recommendations": [
+            {
+                "title": "API Response Caching",
+                "description": "Cache frequent responses to reduce calls by 30%",
+                "savings": 450.00,
+                "effort": "Medium",
+                "impact": "high",
+            },
+            {
+                "title": "LLM Token Optimization",
+                "description": "Use prompt engineering to reduce consumption",
+                "savings": 320.00,
+                "effort": "Low",
+                "impact": "high",
+            },
+            {
+                "title": "Storage Lifecycle Management",
+                "description": "Archive older data automatically",
+                "savings": 180.00,
+                "effort": "High",
+                "impact": "medium",
+            },
+        ],
+    }
+
+
+@app.get("/api/analytics/smart-alerts")
+async def get_smart_alerts() -> dict[str, Any]:
+    """Get intelligent alerts and anomaly detection results."""
+
+    return {
+        "active_alerts": [
+            {
+                "id": 1,
+                "title": "Budget Threshold Exceeded",
+                "message": "Monthly costs 15% above budget. Consider optimization.",
+                "severity": "high",
+                "timestamp": datetime.utcnow() - timedelta(hours=2),
+                "category": "budget",
+            },
+            {
+                "id": 2,
+                "title": "Unusual API Usage Pattern",
+                "message": "API calls increased 45% vs last week.",
+                "severity": "medium",
+                "timestamp": datetime.utcnow() - timedelta(hours=6),
+                "category": "usage_anomaly",
+            },
+            {
+                "id": 3,
+                "title": "Optimization Opportunity",
+                "message": "Caching could save $450/month based on patterns.",
+                "severity": "low",
+                "timestamp": datetime.utcnow() - timedelta(days=1),
+                "category": "optimization",
+            },
+        ],
+        "alert_configuration": [
+            {
+                "type": "budget_overrun",
+                "enabled": True,
+                "threshold": 90,
+                "frequency": "immediate",
+            },
+            {
+                "type": "usage_anomaly",
+                "enabled": True,
+                "threshold": 150,
+                "frequency": "hourly",
+            },
+            {
+                "type": "cost_spike",
+                "enabled": False,
+                "threshold": 200,
+                "frequency": "immediate",
+            },
+        ],
+        "anomaly_detection": {
+            "model_accuracy": 94.5,
+            "false_positive_rate": 2.1,
+            "detection_latency": "< 5 minutes",
+            "last_training": datetime.utcnow() - timedelta(days=7),
+        },
+    }
+
+
+@app.get("/api/analytics/ai-insights")
+async def get_ai_insights() -> dict[str, Any]:
+    """Get comprehensive AI-powered insights and recommendations."""
+
+    return {
+        "insight_categories": {
+            "cost_optimization": {
+                "count": 5,
+                "insights": [
+                    {
+                        "title": "API Response Caching",
+                        "description": "Reduce redundant calls by 30%",
+                        "impact": "high",
+                        "confidence": 92,
+                    },
+                    {
+                        "title": "Storage Compression",
+                        "description": "Compress older data for savings",
+                        "impact": "medium",
+                        "confidence": 78,
+                    },
+                ],
+            },
+            "usage_trends": {
+                "count": 3,
+                "insights": [
+                    {
+                        "title": "Peak Hour Analysis",
+                        "description": "Usage concentrated in business hours",
+                        "impact": "medium",
+                        "confidence": 89,
+                    },
+                    {
+                        "title": "Seasonal Patterns",
+                        "description": "Q4 shows 22% increase",
+                        "impact": "high",
+                        "confidence": 95,
+                    },
+                ],
+            },
+            "risk_factors": {
+                "count": 2,
+                "insights": [
+                    {
+                        "title": "Budget Overrun Risk",
+                        "description": "Projected to exceed budget by 12%",
+                        "impact": "high",
+                        "confidence": 87,
+                    },
+                ],
+            },
+        },
+        "comprehensive_analysis": {
+            "key_findings": [
+                "API usage correlates strongly with business hours (9 AM - 6 PM)",
+                "LLM token consumption peaks on Tuesdays and Wednesdays",
+                "Storage growth is linear at 12% monthly rate",
+                "Workflow efficiency improved 23% over last quarter",
+            ],
+            "recommendations": [
+                "Implement request batching during peak hours for 15% cost reduction",
+                "Consider reserved capacity for predictable workloads",
+                "Enable intelligent caching for frequently accessed data",
+                "Optimize LLM prompts to reduce token usage by 20%",
+            ],
+            "confidence_score": 91.5,
+            "last_analysis": datetime.utcnow() - timedelta(hours=1),
+        },
     }
 
 
