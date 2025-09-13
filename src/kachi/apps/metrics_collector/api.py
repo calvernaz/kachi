@@ -127,8 +127,9 @@ async def get_connector_details(connector_name: str) -> dict[str, Any]:
 
 @router.post("/collect", response_model=CollectionTriggerResponse)
 async def trigger_collection(
-    connector_name: str
-    | None = Query(None, description="Specific connector to collect from"),
+    connector_name: str | None = Query(
+        None, description="Specific connector to collect from"
+    ),
 ) -> CollectionTriggerResponse:
     """Trigger manual metrics collection."""
     try:

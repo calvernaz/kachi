@@ -341,9 +341,9 @@ class MetricsTransformer:
         collection_result: MetricCollectionResult,
     ) -> dict[str, Any]:
         """Update metadata for existing meter reading."""
-        existing_metadata[
-            "last_update"
-        ] = collection_result.collection_timestamp.isoformat()
+        existing_metadata["last_update"] = (
+            collection_result.collection_timestamp.isoformat()
+        )
         existing_metadata["total_updates"] = (
             existing_metadata.get("total_updates", 0) + 1
         )

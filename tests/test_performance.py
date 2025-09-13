@@ -96,14 +96,14 @@ class TestPerformance:
         events_per_second = event_count / processing_time
 
         # Should process at least 100 events per second
-        assert (
-            events_per_second >= 100
-        ), f"Processing rate too slow: {events_per_second:.2f} events/sec"
+        assert events_per_second >= 100, (
+            f"Processing rate too slow: {events_per_second:.2f} events/sec"
+        )
 
         # Total processing time should be reasonable
-        assert (
-            processing_time < 30
-        ), f"Processing took too long: {processing_time:.2f} seconds"
+        assert processing_time < 30, (
+            f"Processing took too long: {processing_time:.2f} seconds"
+        )
 
         print(
             f"Processed {event_count} events in {processing_time:.2f}s ({events_per_second:.2f} events/sec)"
@@ -164,9 +164,9 @@ class TestPerformance:
         events_per_second = event_count / processing_time
 
         # Concurrent processing should be faster
-        assert (
-            events_per_second >= 200
-        ), f"Concurrent processing rate too slow: {events_per_second:.2f} events/sec"
+        assert events_per_second >= 200, (
+            f"Concurrent processing rate too slow: {events_per_second:.2f} events/sec"
+        )
 
         print(
             f"Concurrently processed {event_count} events in {processing_time:.2f}s ({events_per_second:.2f} events/sec)"
@@ -250,15 +250,15 @@ class TestPerformance:
         complex_query_time = time.time() - start_time
 
         # Performance assertions
-        assert (
-            simple_query_time < 5.0
-        ), f"Simple queries too slow: {simple_query_time:.2f}s for 100 queries"
-        assert (
-            aggregation_query_time < 10.0
-        ), f"Aggregation queries too slow: {aggregation_query_time:.2f}s for 100 queries"
-        assert (
-            complex_query_time < 15.0
-        ), f"Complex queries too slow: {complex_query_time:.2f}s for 50 queries"
+        assert simple_query_time < 5.0, (
+            f"Simple queries too slow: {simple_query_time:.2f}s for 100 queries"
+        )
+        assert aggregation_query_time < 10.0, (
+            f"Aggregation queries too slow: {aggregation_query_time:.2f}s for 100 queries"
+        )
+        assert complex_query_time < 15.0, (
+            f"Complex queries too slow: {complex_query_time:.2f}s for 50 queries"
+        )
 
         print("Query performance:")
         print(
@@ -323,9 +323,9 @@ class TestPerformance:
         memory_increase = final_memory - initial_memory
 
         # Memory usage should not grow excessively
-        assert (
-            memory_increase < 500
-        ), f"Memory usage increased too much: {memory_increase:.2f} MB"
+        assert memory_increase < 500, (
+            f"Memory usage increased too much: {memory_increase:.2f} MB"
+        )
 
         print(
             f"Memory usage: {initial_memory:.2f} MB -> {final_memory:.2f} MB (increase: {memory_increase:.2f} MB)"
@@ -387,12 +387,12 @@ class TestPerformance:
             max_response_time = max(response_times)
 
             # API responses should be fast
-            assert (
-                avg_response_time < 1.0
-            ), f"{endpoint} average response time too slow: {avg_response_time:.3f}s"
-            assert (
-                max_response_time < 2.0
-            ), f"{endpoint} max response time too slow: {max_response_time:.3f}s"
+            assert avg_response_time < 1.0, (
+                f"{endpoint} average response time too slow: {avg_response_time:.3f}s"
+            )
+            assert max_response_time < 2.0, (
+                f"{endpoint} max response time too slow: {max_response_time:.3f}s"
+            )
 
             print(
                 f"{endpoint}: avg {avg_response_time:.3f}s, max {max_response_time:.3f}s"

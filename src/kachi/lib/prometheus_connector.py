@@ -36,9 +36,9 @@ class PrometheusConnector(MetricsConnector):
 
         # Add authentication if configured
         if "bearer_token" in self.config.credentials:
-            headers[
-                "Authorization"
-            ] = f"Bearer {self.config.credentials['bearer_token']}"
+            headers["Authorization"] = (
+                f"Bearer {self.config.credentials['bearer_token']}"
+            )
         elif (
             "username" in self.config.credentials
             and "password" in self.config.credentials
