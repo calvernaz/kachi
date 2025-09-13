@@ -91,11 +91,11 @@ class MetricsCollectionService:
                     exc_info=True,
                 )
                 collection_results.append(
-                    {
-                        "mapping": mapping.external_metric_name,
-                        "success": False,
-                        "error": str(e),
-                    }
+                    MetricCollectionResult(
+                        mapping=mapping.external_metric_name,
+                        success=False,
+                        error=str(e),
+                    )
                 )
 
         return {
@@ -136,7 +136,7 @@ class MetricsCollectionService:
             filters = []
             for key, value in mapping.label_filters.items():
                 filters.append(f'{key}="{value}"')
-            query = f'{query}{{{",".join(filters)}}}'
+            query = f"{query}{{{','.join(filters)}}}"
 
         # Apply transformation function
         if mapping.transformation_function == "rate":
@@ -152,13 +152,13 @@ class MetricsCollectionService:
         self, result: MetricCollectionResult, mapping: MetricMapping
     ) -> list[MeterReading]:
         """Transform external metrics to Kachi meter readings and store them."""
-        meter_readings = []
+        meter_readings: list[MeterReading] = []
 
         if not result.success:
             return meter_readings
 
         # Group data points by customer and time window
-        customer_windows = {}
+        customer_windows: dict[tuple[UUID, datetime], list[MetricDataPoint]] = {}
 
         for data_point in result.data_points:
             # Extract customer ID from labels
@@ -251,7 +251,7 @@ class MetricsCollectionService:
     async def _customer_exists(self, customer_id: UUID) -> bool:
         """Check if customer exists in the database."""
         result = await self.session.execute(
-            select(Customer.id).where(Customer.id == customer_id)  # type: ignore[arg-type]
+            select(Customer.id).where(Customer.id == customer_id)  # type: ignore[call-overload]
         )
         return result.scalar() is not None
 
@@ -277,5 +277,6 @@ def setup_default_connectors() -> None:
 
 async def create_metrics_collection_service() -> MetricsCollectionService:
     """Factory function to create metrics collection service."""
-    async with get_session() as session:
-        return MetricsCollectionService(session)
+    session_gen = get_session()
+    session = await session_gen.__anext__()
+    return MetricsCollectionService(session)

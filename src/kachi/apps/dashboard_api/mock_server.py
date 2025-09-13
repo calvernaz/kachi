@@ -192,8 +192,8 @@ async def get_customer_segmentation(
     for i in range(42):
         customers.append(
             {
-                "id": f"customer-{i+1}",
-                "name": f"Customer {i+1}",
+                "id": f"customer-{i + 1}",
+                "name": f"Customer {i + 1}",
                 "revenue": random.randint(1000, 50000),
                 "usage": random.randint(5000, 100000),
                 "growth": random.uniform(-20, 50),
@@ -295,7 +295,7 @@ async def get_usage_forecast(
         "historical": historical,
         "forecast": forecast,
         "insights": [
-            f"Usage is trending upward with {growth_rate*100:.1f}% daily growth",
+            f"Usage is trending upward with {growth_rate * 100:.1f}% daily growth",
             f"Peak usage expected on {peak_day['date']}",
             "Weekend usage typically 30% lower than weekdays",
             "API calls show strongest growth pattern",
@@ -326,7 +326,7 @@ async def get_anomaly_detection(
 
         anomalies.append(
             {
-                "id": f"anomaly-{i+1}",
+                "id": f"anomaly-{i + 1}",
                 "title": f"Unusual {random.choice(['API', 'Usage', 'Response Time', 'Error Rate'])} Pattern",
                 "description": f"Detected {random.randint(150, 500)}% deviation from normal baseline",
                 "severity": severity,
@@ -693,7 +693,7 @@ async def get_alerts(
 
         alerts.append(
             {
-                "id": f"alert-{i+1}",
+                "id": f"alert-{i + 1}",
                 "title": random.choice(alert_types),
                 "description": f"Alert description for {random.choice(alert_types).lower()}",
                 "severity": alert_severity,
@@ -829,13 +829,15 @@ async def get_predictive_billing(
 
         cost = base_cost * seasonal_factor + noise
 
-        forecast_data.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "actual_cost": cost if i < periods * 0.6 else None,
-            "predicted_cost": cost if i >= periods * 0.6 else None,
-            "confidence_upper": cost * 1.15 if i >= periods * 0.6 else None,
-            "confidence_lower": cost * 0.85 if i >= periods * 0.6 else None,
-        })
+        forecast_data.append(
+            {
+                "date": date.strftime("%Y-%m-%d"),
+                "actual_cost": cost if i < periods * 0.6 else None,
+                "predicted_cost": cost if i >= periods * 0.6 else None,
+                "confidence_upper": cost * 1.15 if i >= periods * 0.6 else None,
+                "confidence_lower": cost * 0.85 if i >= periods * 0.6 else None,
+            }
+        )
 
     return {
         "timeframe": timeframe,
@@ -870,7 +872,9 @@ async def get_predictive_billing(
 
 @app.get("/api/analytics/cost-forecasting")
 async def get_cost_forecasting(
-    model_type: str = Query("seasonal", description="Model: linear, polynomial, seasonal, neural"),
+    model_type: str = Query(
+        "seasonal", description="Model: linear, polynomial, seasonal, neural"
+    ),
     horizon: int = Query(6, description="Forecast horizon in months"),
 ) -> dict[str, Any]:
     """Get advanced cost forecasting with multiple ML models."""

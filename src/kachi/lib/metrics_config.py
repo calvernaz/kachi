@@ -179,7 +179,7 @@ def load_custom_metric_mappings() -> dict[str, list[MetricMapping]]:
 class MetricsConfigManager:
     """Manager for metrics collection configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.global_config = load_metrics_config()
         self.data_source_configs = get_all_data_source_configs()
         self.custom_mappings = load_custom_metric_mappings()

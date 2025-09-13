@@ -63,7 +63,7 @@ test-coverage:
 
 # Code quality targets
 lint:
-	uv run ruff check src/ tests/
+	uv run ruff check --fix src/ tests/
 
 format:
 	uv run ruff format src/ tests/

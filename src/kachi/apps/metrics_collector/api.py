@@ -1,20 +1,18 @@
 """API endpoints for metrics collection management."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from kachi.apps.metrics_collector.main import MetricsCollectionService
 from kachi.apps.metrics_collector.tasks import (
     collect_all_external_metrics,
     collect_connector_metrics,
     health_check_all_connectors,
     manual_metrics_collection,
 )
-from kachi.lib.db import get_session
 from kachi.lib.metrics_config import config_manager
 from kachi.lib.metrics_connectors import (
     MetricMapping,
@@ -98,7 +96,7 @@ async def get_connector_details(connector_name: str) -> dict[str, Any]:
     if not connector:
         raise HTTPException(
             status_code=404, detail=f"Connector '{connector_name}' not found"
-        ) from e
+        )
 
     try:
         # Test connection
@@ -124,14 +122,13 @@ async def get_connector_details(connector_name: str) -> dict[str, Any]:
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to get connector details: {e!s}"
-        ) from e from e
+        ) from e
 
 
 @router.post("/collect", response_model=CollectionTriggerResponse)
 async def trigger_collection(
-    connector_name: str | None = Query(
-        None, description="Specific connector to collect from"
-    ),
+    connector_name: str
+    | None = Query(None, description="Specific connector to collect from"),
 ) -> CollectionTriggerResponse:
     """Trigger manual metrics collection."""
     try:
@@ -149,11 +146,11 @@ async def trigger_collection(
             task_id=task.id,
             message=message,
             triggered_at=datetime.utcnow(),
-        ) from e
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to trigger collection: {e!s}"
-        ) from e from e
+        ) from e
 
 
 @router.post("/collect/manual", response_model=CollectionTriggerResponse)
@@ -176,7 +173,7 @@ async def trigger_manual_collection(
             task_id=task.id,
             message=message,
             triggered_at=datetime.utcnow(),
-        ) from e
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to trigger manual collection: {e!s}"
@@ -208,7 +205,7 @@ async def get_available_metrics(connector_name: str) -> dict[str, Any]:
     if not connector:
         raise HTTPException(
             status_code=404, detail=f"Connector '{connector_name}' not found"
-        ) from e
+        )
 
     try:
         metrics = await connector.get_available_metrics()
@@ -232,7 +229,7 @@ async def get_metric_metadata(connector_name: str, metric_name: str) -> dict[str
     if not connector:
         raise HTTPException(
             status_code=404, detail=f"Connector '{connector_name}' not found"
-        ) from e
+        )
 
     try:
         metadata = await connector.get_metric_metadata(metric_name)
@@ -259,7 +256,7 @@ async def add_metric_mapping(
     if not connector:
         raise HTTPException(
             status_code=404, detail=f"Connector '{connector_name}' not found"
-        ) from e
+        )
 
     try:
         # Create metric mapping
@@ -268,9 +265,9 @@ async def add_metric_mapping(
             kachi_meter_key=mapping_request.kachi_meter_key,
             transformation_function=mapping_request.transformation_function,
             customer_id_label=mapping_request.customer_id_label,
-            scaling_factor=mapping_request.scaling_factor,
+            scaling_factor=Decimal(str(mapping_request.scaling_factor)),
             label_filters=mapping_request.label_filters,
-        ) from e
+        )
 
         # Add to connector configuration
         connector.config.metric_mappings.append(mapping)
@@ -297,7 +294,7 @@ async def get_metric_mappings(connector_name: str) -> dict[str, Any]:
     if not connector:
         raise HTTPException(
             status_code=404, detail=f"Connector '{connector_name}' not found"
-        ) from e
+        )
 
     try:
         mappings = connector.config.metric_mappings
@@ -344,9 +341,7 @@ async def get_metrics_config() -> dict[str, Any]:
 
 
 @router.get("/status")
-async def get_collection_status(
-    session: AsyncSession = Depends(get_session),
-) -> dict[str, Any]:
+async def get_collection_status() -> dict[str, Any]:
     """Get overall metrics collection status."""
     try:
         # Get basic stats

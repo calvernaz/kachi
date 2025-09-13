@@ -27,7 +27,7 @@ class MetricValidationError(Exception):
 class MetricTransformationResult:
     """Result of metric transformation operation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.success = True
         self.meter_readings: list[MeterReading] = []
         self.errors: list[str] = []
@@ -134,7 +134,7 @@ class MetricsTransformer:
         result: MetricTransformationResult,
     ) -> dict[tuple[UUID, datetime], list[MetricDataPoint]]:
         """Group data points by customer ID and time window."""
-        customer_windows = {}
+        customer_windows: dict[tuple[UUID, datetime], list[MetricDataPoint]] = {}
 
         for data_point in data_points:
             # Extract customer ID
@@ -198,7 +198,7 @@ class MetricsTransformer:
             return self._customer_cache[customer_id]
 
         result = await self.session.execute(
-            select(Customer.id).where(Customer.id == customer_id)  # type: ignore[arg-type]
+            select(Customer.id).where(Customer.id == customer_id)  # type: ignore[call-overload]
         )
         exists = result.scalar() is not None
 
@@ -255,9 +255,15 @@ class MetricsTransformer:
         if existing_reading:
             # Update existing reading (additive)
             existing_reading.value += final_value
-            existing_reading.metadata = self._update_metadata(
-                existing_reading.metadata or {}, data_points, collection_result
+            metadata_dict = (
+                existing_reading.metadata
+                if isinstance(existing_reading.metadata, dict)
+                else {}
             )
+            updated_metadata = self._update_metadata(
+                metadata_dict, data_points, collection_result
+            )
+            existing_reading.metadata = updated_metadata
             return existing_reading
         else:
             # Create new meter reading
@@ -283,19 +289,19 @@ class MetricsTransformer:
         values = [dp.value for dp in data_points]
 
         if mapping.transformation_function == "sum":
-            return sum(values)
+            return Decimal(str(sum(values)))
         elif mapping.transformation_function == "avg":
-            return sum(values) / len(values) if values else Decimal("0")
+            return Decimal(str(sum(values) / len(values))) if values else Decimal("0")
         elif mapping.transformation_function == "max":
-            return max(values) if values else Decimal("0")
+            return Decimal(str(max(values))) if values else Decimal("0")
         elif mapping.transformation_function == "min":
-            return min(values) if values else Decimal("0")
+            return Decimal(str(min(values))) if values else Decimal("0")
         elif mapping.transformation_function == "rate":
             # For rate calculations, sum the values (assuming they're already rates)
-            return sum(values)
+            return Decimal(str(sum(values)))
         else:
             # Default to sum
-            return sum(values)
+            return Decimal(str(sum(values)))
 
     async def _get_existing_meter_reading(
         self, customer_id: UUID, meter_key: str, window_start: datetime
