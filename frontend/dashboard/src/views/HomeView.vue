@@ -21,9 +21,17 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="bg-white rounded-lg shadow p-6">
-      <h1 class="text-2xl font-bold text-gray-900 mb-2">Usage Dashboard</h1>
-      <p class="text-gray-600">Monitor customer usage, billing, and system health</p>
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 mb-2">Usage Dashboard</h1>
+          <p class="text-slate-600">Monitor customer usage, billing, and system health</p>
+        </div>
+        <div class="flex items-center space-x-2 text-sm text-slate-500">
+          <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span>Live</span>
+        </div>
+      </div>
     </div>
 
     <!-- Loading State -->

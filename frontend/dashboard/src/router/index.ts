@@ -24,6 +24,11 @@ const router = createRouter({
       name: 'usage',
       component: () => import('../views/AboutView.vue'), // Placeholder for now
     },
+    {
+      path: '/analytics',
+      name: 'analytics',
+      component: () => import('../views/AnalyticsView.vue'),
+    },
   ],
 })
 
