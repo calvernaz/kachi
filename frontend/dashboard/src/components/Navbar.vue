@@ -45,6 +45,13 @@
             >
               Analytics
             </RouterLink>
+            <RouterLink
+              to="/billing"
+              class="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+              :class="{ 'text-blue-600 bg-blue-50': $route.path.startsWith('/billing') }"
+            >
+              Billing
+            </RouterLink>
           </div>
         </div>
 

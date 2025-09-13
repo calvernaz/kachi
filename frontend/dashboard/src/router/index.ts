@@ -29,6 +29,11 @@ const router = createRouter({
       name: 'analytics',
       component: () => import('../views/AnalyticsView.vue'),
     },
+    {
+      path: '/billing',
+      name: 'billing',
+      component: () => import('../views/BillingView.vue')
+    },
   ],
 })
 

@@ -498,8 +498,8 @@ async def get_billing_preview(
     usage_scenario: str = Query(
         "current", description="Scenario: current, optimistic, pessimistic"
     ),
-    period_start: str = Query(..., description="Period start (YYYY-MM-DD)"),
-    period_end: str = Query(..., description="Period end (YYYY-MM-DD)"),
+    period_start: str = Query("2024-01-01", description="Period start (YYYY-MM-DD)"),
+    period_end: str = Query("2024-01-31", description="Period end (YYYY-MM-DD)"),
 ) -> dict[str, Any]:
     """Generate billing preview for a customer."""
 
