@@ -1,6 +1,6 @@
 # Makefile for Kachi Billing System
 
-.PHONY: help install test test-unit test-integration test-performance test-property test-fast test-coverage lint format type-check quality-check clean dev-setup
+.PHONY: help install test test-unit test-integration test-performance test-property test-fast test-coverage lint format type-check quality-check clean dev-setup run-ingest run-dashboard run-frontend start-ingest-api start-dashboard-api start-frontend start-workers dev dev-stop db-migrate db-reset docker-build docker-run docker-stop deps-update deps-audit pre-commit ci-test ci-full
 
 # Default target
 help:
@@ -25,11 +25,28 @@ help:
 	@echo "  type-check       Run mypy type checking"
 	@echo "  quality-check    Run all quality checks"
 	@echo ""
-	@echo "Development:"
+	@echo "🚀 Quick Start:"
+	@echo "  dev              Start complete development environment"
+	@echo "  dev-stop         Stop development environment"
+	@echo ""
+	@echo "🛠️  Development Services:"
+	@echo "  start-ingest-api     Start ingest API server (port 8001)"
+	@echo "  start-dashboard-api  Start dashboard API server (port 8002)"
+	@echo "  start-frontend       Start frontend dev server (port 5173)"
+	@echo "  start-workers        Start Celery background workers"
+	@echo ""
+	@echo "🗄️  Database:"
+	@echo "  db-migrate       Run database migrations"
+	@echo "  db-reset         Reset database (destructive)"
+	@echo ""
+	@echo "🐳 Docker:"
+	@echo "  docker-build     Build Docker images"
+	@echo "  docker-run       Start all services with Docker"
+	@echo "  docker-stop      Stop Docker services"
+	@echo ""
+	@echo "🧹 Maintenance:"
 	@echo "  clean            Clean up generated files"
-	@echo "  run-ingest       Run ingestion API server"
-	@echo "  run-dashboard    Run dashboard API server"
-	@echo "  run-frontend     Run frontend development server"
+	@echo "  deps-update      Update dependencies"
 
 # Installation and setup
 install:
@@ -76,13 +93,51 @@ quality-check: lint type-check
 
 # Development servers
 run-ingest:
+	DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@localhost:5432/kachi \
+	REDIS_URL=redis://localhost:6379/0 \
 	uv run uvicorn kachi.apps.ingest_api.main:app --host 0.0.0.0 --port 8001 --reload
 
 run-dashboard:
+	DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@localhost:5432/kachi \
+	REDIS_URL=redis://localhost:6379/0 \
 	uv run uvicorn kachi.apps.dashboard_api.main:app --host 0.0.0.0 --port 8002 --reload
 
 run-frontend:
 	cd frontend/dashboard && yarn dev
+
+# Alias targets for README compatibility
+start-ingest-api: run-ingest
+
+start-dashboard-api: run-dashboard
+
+start-frontend: run-frontend
+
+start-workers:
+	@echo "Starting Celery workers..."
+	uv run celery -A kachi.lib.celery_app worker --loglevel=info --concurrency=2
+
+# Development mode - start all services
+dev:
+	@echo "🚀 Starting Kachi development environment..."
+	@echo "📊 Starting databases..."
+	@docker compose up -d postgres redis
+	@echo "⏳ Waiting for databases to be ready..."
+	@sleep 10
+	@echo "🔄 Running database migrations..."
+	@DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@localhost:5432/kachi $(MAKE) db-migrate
+	@echo "🎯 Starting all services..."
+	@echo "   - Ingest API will be available at http://localhost:8001"
+	@echo "   - Dashboard API will be available at http://localhost:8002"
+	@echo "   - Frontend will be available at http://localhost:5173"
+	@echo ""
+	@echo "💡 Use Ctrl+C to stop all services"
+	@echo ""
+	@echo "Starting services in background..."
+	@DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@localhost:5432/kachi REDIS_URL=redis://localhost:6379/0 $(MAKE) run-ingest &
+	@DATABASE_URL=postgresql+asyncpg://kachi:kachi_password@localhost:5432/kachi REDIS_URL=redis://localhost:6379/0 $(MAKE) run-dashboard &
+	@$(MAKE) run-frontend &
+	@echo "All services started! Press Ctrl+C to stop."
+	@trap 'echo "🛑 Stopping services..."; docker compose stop postgres redis; exit 0' INT; wait
 
 # Database operations
 db-migrate:
@@ -108,10 +163,16 @@ docker-build:
 	docker build -t kachi-billing .
 
 docker-run:
-	docker-compose up -d
+	docker compose up -d
 
 docker-stop:
-	docker-compose down
+	docker compose down
+
+# Stop development environment
+dev-stop:
+	@echo "🛑 Stopping development environment..."
+	@docker compose stop postgres redis
+	@echo "✅ Development environment stopped"
 
 # Production deployment
 deploy-staging:

@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Column, Index, Text, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, Index, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, BIGINT, JSONB, TIMESTAMP
 from sqlmodel import Field, SQLModel
 
@@ -123,8 +123,12 @@ class RatedUsage(SQLModel, table=True):
 
     id: int = Field(sa_column=Column(BIGINT, primary_key=True, autoincrement=True))
     customer_id: UUID = Field(foreign_key="customers.id", index=True)
-    period_start: datetime = Field(sa_column=Column("period_start", Text))  # date
-    period_end: datetime = Field(sa_column=Column("period_end", Text))  # date
+    period_start: datetime = Field(
+        sa_column=Column("period_start", DateTime(timezone=True))
+    )
+    period_end: datetime = Field(
+        sa_column=Column("period_end", DateTime(timezone=True))
+    )
     items_json: dict[str, Any] = Field(sa_column=Column(JSONB))  # detailed lines
     subtotal: Decimal = Field(decimal_places=6, max_digits=20)
     cogs: Decimal = Field(decimal_places=6, max_digits=20)

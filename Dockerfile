@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Kachi Billing Platform
 
 # Stage 1: Frontend build
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -40,8 +40,8 @@ RUN useradd --create-home --shell /bin/bash app
 USER app
 WORKDIR /home/app
 
-# Copy Python dependency files
-COPY --chown=app:app pyproject.toml uv.lock ./
+# Copy Python dependency files and README (required by pyproject.toml)
+COPY --chown=app:app pyproject.toml uv.lock README.md ./
 
 # Install Python dependencies
 RUN uv sync --frozen
@@ -49,7 +49,6 @@ RUN uv sync --frozen
 # Copy application source
 COPY --chown=app:app src/ ./src/
 COPY --chown=app:app alembic.ini ./
-COPY --chown=app:app alembic/ ./alembic/
 
 # Copy built frontend assets
 COPY --from=frontend-builder --chown=app:app /app/frontend/dist ./frontend/dashboard/dist/

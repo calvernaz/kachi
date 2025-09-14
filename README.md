@@ -544,7 +544,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**Built with ❤️ by the Kachi Team**
+**Built with ❤️**
 
 [🌟 Star us on GitHub](https://github.com/your-org/kachi) • [📧 Contact Us](mailto:team@kachi.dev) • [🐦 Follow Us](https://twitter.com/kachi_dev)
 
